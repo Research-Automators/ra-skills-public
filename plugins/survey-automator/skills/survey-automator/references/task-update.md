@@ -4,19 +4,23 @@ The user has a survey that already exists in Survey Automator, often with respon
 
 Use Task 1 or 2 instead when the user wants a new survey, or a new copy of a survey ("make a v2 as a new project").
 
-## Which file to give
+## In the browser: window.surveyAutomator
 
-When the user asks for changes to a survey made earlier (in this conversation or another one), decide by two facts: is the survey in Survey Automator yet, and does it have responses? If you can't tell, ask in one line: "Is the survey already in Survey Automator, and does it have responses or changes made in the editor since?"
+If you can run JavaScript in the user's browser tab (e.g. Claude in Chrome's JavaScript tool) and the tab shows a Survey Automator project, check `typeof window.surveyAutomator`. If it is there, use it instead of asking for files. It runs in the user's own session and changes nothing by itself:
+- `surveyAutomator.project()`: `{ id, name, unsavedChanges }`. With `unsavedChanges`, ask the user to save first: the other calls see the saved survey.
+- `await surveyAutomator.getSurveyJson()`: the current export, with `surveyVersion`. Use it as the base and copy `surveyVersion` into `baseVersion`.
+- `await surveyAutomator.previewUpdate(update)`: the server's checks. It returns `{ status: "review" | "errors", errors, review }` with every problem at once. Fix and repeat until the status is `review`. It does not change the survey.
+- `surveyAutomator.openUpdateReview(update)`: opens the review dialog. Tell the user to review and apply the changes there. You can't apply them yourself, and you shouldn't try to click Apply for the user. If the app asks about the project's edit lock, the user decides.
 
-1. **Not imported yet**: change the draft and give a new full survey JSON (Task 1 or 2). No update file.
-2. **Imported, no responses yet**: give an update file built on your latest version of the survey. No export and no `baseVersion` are needed. This is better than clearing the project and importing again, because it keeps what was set up in the editor (layout, translations, settings). Two cautions:
-   - If the user has changed questions in the editor since the import, ask for a fresh export first. Otherwise the update can undo those edits.
-   - Your latest version assumes every change of the last update was applied. If the user unticked something in the review, your copy no longer matches the project: ask for an export.
-3. **Has responses**: always work from a fresh export, with `baseVersion`, and follow "Data safety" below.
+`surveyAutomator.help` lists the calls. If it isn't there (another page, or an older version of the platform), use the files as below.
+
+## Changing a survey you made earlier
+
+Without the browser API, write an update file against your latest version of the survey and leave out `baseVersion`, unless you have an export. End with one line: "If the import is refused because the survey has responses, or you've changed it in the editor or unticked changes in the review, export the survey and give me the export." If the user hasn't imported the survey yet, they import the full revised survey instead (Task 1 or 2): give it if they ask.
 
 ## Input: the current survey (export)
 
-The survey's JSON export starts with `"surveyVersion"` (8 hex characters), lists conditions in a top-level `conditions` array that questions point to with `conditionId`, and may have `responses`. Use it whenever you have it, and always when the survey has responses: ask the user to export the survey again if they have only a description or an old file. Without an export (case 2 above) your latest version is the base: use its ids exactly.
+The survey's JSON export starts with `"surveyVersion"` (8 hex characters), lists conditions in a top-level `conditions` array that questions point to with `conditionId`, and may have `responses`. Use it whenever you have it, and always when the survey has responses: ask the user to export the survey again if they have only a description or an old file. Without an export, your latest version is the base: use its ids exactly.
 
 Read `format-core.md` and `format-questions.md` (and `example.json`) as well: added and replaced questions follow the normal authoring rules. `update-example.json` is a worked update of `example.json`.
 
@@ -33,7 +37,7 @@ Read `format-core.md` and `format-questions.md` (and `example.json`) as well: ad
 }
 ```
 
-- `updateMode: true`, then `baseVersion` = the export's `surveyVersion`, copied exactly. Never invent it. Leave it out only when you have no export and the survey has no responses (case 2): the importer then accepts the file and the review notes that changes made in the editor since may be overwritten. With responses a file without `baseVersion` is refused. A `baseVersion` that doesn't match the survey makes the review warn that the survey has changed, and the user has to confirm.
+- `updateMode: true`, then `baseVersion` = the export's `surveyVersion`, copied exactly. Never invent it. Leave it out only when you have no export and the survey has no responses: the importer then accepts the file and the review notes that changes made in the editor since may be overwritten. With responses a file without `baseVersion` is refused. A `baseVersion` that doesn't match the survey makes the review warn that the survey has changed, and the user has to confirm.
 - Only `questions`. Any other top-level key (`conditions`, `responses`, `surveyMessages`, `groups`, `messages`) is refused.
 - Every changed question has an `update` object. Update markup is never allowed in a normal (create) import.
 

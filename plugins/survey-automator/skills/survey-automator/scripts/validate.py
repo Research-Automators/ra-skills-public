@@ -4,7 +4,8 @@ Validate a Survey Automator export JSON against the bundled schema
 AND a set of structural/semantic rules that the schema alone cannot express.
 
 Usage:
-    python validate.py <path-to-survey.json>
+    python validate.py <path-to-survey.json> [--existing <project-survey.json>]
+    python validate.py <update.json> [--base <survey-export.json>]   (Survey Update Mode)
 
 Exit code 0 means the file is valid. Non-zero means problems were found; they
 are printed one per line to stdout.
@@ -20,6 +21,8 @@ rather than silently skipping the rule (see _SUPPORTED_KEYWORDS).
 """
 from __future__ import annotations
 
+import copy
+import hashlib
 import json
 import re
 import sys
@@ -2298,10 +2301,885 @@ def collect_warnings(data) -> list[str]:
     return warnings
 
 
+# --------------------------------------------------------------------------
+# Survey Update Mode (updateMode: true) - mirrors the platform's update importer.
+# See references/task-update.md. Without --base: the file's own rules. With --base
+# <survey export>: everything the importer checks before its review dialog, except
+# what needs the project itself (shared answer lists, reserved ids of earlier
+# renames, per-question response counts when the export has no responses).
+# --------------------------------------------------------------------------
+
+UPDATE_ACTIONS = ("add", "edit", "replace", "move", "remove")
+UPDATE_CHANGES = ("text", "order", "additions", "structure")
+_UPDATE_FILE_KEYS = ("updateMode", "baseVersion", "questions")
+_UPDATE_KEYS = ("action", "change", "placeAfter", "oldId", "note")
+_UPDATE_TEXT_PROPS = {
+    "text", "surveyText", "comment", "scaleLeft", "scaleRight", "scaleDK",
+    "answerAlternativeHeaderText", "answerAlternativeHeaderText2", "answerAlternativeHeaderText3",
+}
+# properties an edit changes in place; any other changed property rebuilds the question
+_UPDATE_IN_PLACE = _UPDATE_TEXT_PROPS | {"id", "condition", "conditionId", "pagebreak", "excluded", "answers", "rows"}
+_UPDATE_NO_TEXT = {
+    "id", "type", "scale", "interface", "layout", "excluded", "pagebreak", "condition", "conditionId", "groupId",
+    "update", "min", "max", "randomAnswers", "cssClass", "reports", "comparison", "calculated", "calculation",
+    "coded", "period", "category", "points", "color", "label", "exclusive", "tag", "connectedTo",
+}
+_UPDATE_TOKEN = re.compile(r"(?P<colon>:\s*)?\{(?P<name>[^{}]*)\}")
+_TYPO_MAX_DISTANCE = 3
+
+
+def survey_version(survey: dict) -> str:
+    """The surveyVersion the platform writes in a survey export: 8 hex of SHA-256 over questions + conditions."""
+    canonical = {"questions": survey.get("questions") or [], "conditions": survey.get("conditions") or []}
+    s = json.dumps(canonical, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()[:8]
+
+
+def _upd_items(q: dict, name: str) -> list:
+    v = q.get(name) if isinstance(q, dict) else None
+    return [i for i in v if isinstance(i, dict)] if isinstance(v, list) else []
+
+
+def _upd_strip(q: dict) -> dict:
+    q = copy.deepcopy(q)
+    q.pop("update", None)
+    for name in ("answers", "rows"):
+        for item in _upd_items(q, name):
+            item.pop("update", None)
+    return q
+
+
+def _upd_plain(t) -> str:
+    if t is None:
+        return ""
+    if isinstance(t, str):
+        return t
+    if isinstance(t, dict):
+        return t.get("text") or t.get("html") or json.dumps(t, ensure_ascii=False)
+    return json.dumps(t, ensure_ascii=False)
+
+
+def _levenshtein(a: str, b: str) -> int:
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def _is_typo_fix(old, new) -> bool:
+    return _levenshtein(_upd_plain(old), _upd_plain(new)) <= _TYPO_MAX_DISTANCE
+
+
+def _upd_condition_strings(q: dict) -> list[str]:
+    c = q.get("condition")
+    out = []
+    for t in (c if isinstance(c, list) else [c]):
+        if isinstance(t, str):
+            out.append(t)
+        elif isinstance(t, dict) and isinstance(t.get("definition"), str):
+            out.append(t["definition"])
+    return out
+
+
+def _upd_text_strings(o: dict, inside_fields=False) -> list[str]:
+    out = []
+
+    def walk(v, in_fields):
+        if isinstance(v, str):
+            if not in_fields:
+                out.append(v)
+        elif isinstance(v, dict):
+            for k, sub in v.items():
+                walk(sub, in_fields or k == "fields")
+        elif isinstance(v, list):
+            for sub in v:
+                walk(sub, in_fields)
+
+    for k, v in o.items():
+        if k in _UPDATE_NO_TEXT or k in ("answers", "rows"):
+            continue
+        walk(v, inside_fields)
+    return out
+
+
+def _upd_fields(q) -> list[dict]:
+    out = []
+    if isinstance(q, dict):
+        for k, v in q.items():
+            if k == "fields" and isinstance(v, dict):
+                out += [f for f in v.values() if isinstance(f, dict) and isinstance(f.get("question"), str)]
+            else:
+                out += _upd_fields(v)
+    elif isinstance(q, list):
+        for v in q:
+            out += _upd_fields(v)
+    return out
+
+
+def _upd_split_answers(s: str) -> list[str]:
+    return [a.strip() for a in s.split(",") if a.strip() and "-" not in a and "*" not in a]
+
+
+def _upd_references(q: dict, known) -> list[tuple[str, str, list[str]]]:
+    """(kind, name, answer ids) for each reference of a question to a known question or row id."""
+    refs = []
+
+    def parse(s, kind):
+        last = None
+        for m in _UPDATE_TOKEN.finditer(s):
+            name = m.group("name").strip()
+            if m.group("colon"):
+                if last is not None:
+                    last[2].extend(_upd_split_answers(name))
+                continue
+            last = None
+            answer = None
+            if ":" in name[1:]:
+                name, answer = name.split(":", 1)
+                name = name.strip()
+            if not name or not known(name):
+                continue
+            last = (kind, name, _upd_split_answers(answer) if answer else [])
+            refs.append(last)
+
+    for s in _upd_condition_strings(q):
+        parse(s, "condition")
+    strings = _upd_text_strings(q)
+    for name in ("answers", "rows"):
+        for item in _upd_items(q, name):
+            strings += _upd_text_strings(item)
+    for s in strings:
+        parse(s, "text")
+    for f in _upd_fields(q):
+        if known(f["question"]):
+            refs.append(("text", f["question"], [f["answer"]] if isinstance(f.get("answer"), str) else []))
+    return refs
+
+
+def _upd_rewrite(q: dict, qmap: dict, amaps: dict) -> None:
+    """Rewrites references for renames, all at once (qmap: old question/row id -> new; amaps: new question id -> answer map)."""
+    if not qmap and not amaps:
+        return
+
+    def rewrite(s):
+        last = [None]
+
+        def rep(m):
+            name = m.group("name")
+            if m.group("colon"):
+                answers = amaps.get(last[0])
+                if not answers:
+                    return m.group(0)
+                return m.group("colon") + "{" + ",".join(answers.get(a.strip(), a) for a in name.split(",")) + "}"
+            answer = None
+            if ":" in name[1:]:
+                name, answer = name.split(":", 1)
+            trimmed = name.strip()
+            if trimmed in qmap:
+                name = trimmed = qmap[trimmed]
+            last[0] = trimmed
+            if answer is not None:
+                answers = amaps.get(trimmed)
+                if answers:
+                    answer = ",".join(answers.get(a.strip(), a) for a in answer.split(","))
+                return "{" + name + ":" + answer + "}"
+            return "{" + name + "}"
+
+        return _UPDATE_TOKEN.sub(rep, s) if "{" in s else s
+
+    def walk(o, key=None, cond=False):
+        # rewrites strings in conditions and texts; leaves non-text properties alone
+        if isinstance(o, dict):
+            for k in list(o.keys()):
+                v = o[k]
+                if k == "condition":
+                    if isinstance(v, str):
+                        o[k] = rewrite(v)
+                    else:
+                        walk(v, k, True)
+                elif k in ("answers", "rows"):
+                    for item in v if isinstance(v, list) else []:
+                        walk(item)
+                elif k == "fields" and isinstance(v, dict):
+                    for f in v.values():
+                        if isinstance(f, dict) and isinstance(f.get("question"), str):
+                            new = qmap.get(f["question"], f["question"])
+                            f["question"] = new
+                            if isinstance(f.get("answer"), str) and new in amaps:
+                                f["answer"] = amaps[new].get(f["answer"], f["answer"])
+                elif cond and k == "definition" and isinstance(v, str):
+                    o[k] = rewrite(v)
+                elif k in _UPDATE_NO_TEXT:
+                    continue
+                elif isinstance(v, str):
+                    o[k] = rewrite(v)
+                else:
+                    walk(v, k, cond)
+        elif isinstance(o, list):
+            for i, v in enumerate(o):
+                if isinstance(v, str):
+                    o[i] = rewrite(v)
+                else:
+                    walk(v, key, cond)
+
+    walk(q)
+
+
+def _upd_inline_conditions(q: dict, defs: dict) -> None:
+    """conditionId (export form) -> inline condition, as the importer compares them."""
+    cid = q.get("conditionId")
+    if cid is None:
+        return
+    ids = cid if isinstance(cid, list) else [cid]
+    found = [defs[i] for i in ids if isinstance(i, str) and i in defs]
+    q.pop("conditionId")
+    if "condition" not in q and found:
+        q["condition"] = found[0] if len(found) == 1 else found
+
+
+def _upd_same_content(sent: dict, cur: dict) -> bool:
+    for k, v in sent.items():
+        if k == "id":
+            continue
+        if k in ("answers", "rows"):
+            if not isinstance(v, list):
+                return False
+            cur_items = _upd_items(cur, k)
+            sent_items = [i for i in v if isinstance(i, dict)]
+            cur_ids = [i.get("id") for i in cur_items]
+            sent_ids = [i.get("id") for i in sent_items]
+            if all(i in sent_ids for i in cur_ids) and cur_ids != sent_ids:
+                return False
+            for s in sent_items:
+                c = next((i for i in cur_items if i.get("id") == s.get("id")), None)
+                if c is None or not _upd_same_content(s, c):
+                    return False
+        elif v != cur.get(k) and not (v is None and k not in cur):
+            return False
+    return True
+
+
+def _upd_moved(order: list, reference: list, weight) -> set:
+    """Existing questions in `order` that changed position against `reference`: those outside the heaviest
+    increasing subsequence of reference positions (weight prefers keeping questions that did not ask to move)."""
+    existing = [i for i in order if i in reference]
+    pos = [reference.index(i) for i in existing]
+    n = len(existing)
+    best = [weight(existing[i]) for i in range(n)]
+    prev = [-1] * n
+    for i in range(n):
+        for j in range(i):
+            if pos[j] < pos[i] and best[j] + weight(existing[i]) > best[i]:
+                best[i] = best[j] + weight(existing[i])
+                prev[i] = j
+    keep = set()
+    if n:
+        k = max(range(n), key=lambda i: (best[i], -i))
+        while k >= 0:
+            keep.add(existing[k])
+            k = prev[k]
+    return {i for i in existing if i not in keep}
+
+
+def _upd_question_schema_errors(body: dict, where: str, partial: bool) -> list[str]:
+    """Schema check of one entry's question (update markup removed). partial (edit): required properties may be left
+    out, and null clears a property."""
+    schema = load_json(SCHEMA_PATH)
+    q = {k: v for k, v in _upd_strip(body).items() if not (partial and v is None) and k != "conditionId"}
+    # the importer also takes the export's inline form: the definition as a string (or an array of them)
+    c = q.get("condition")
+    if isinstance(c, str) or (isinstance(c, list) and c and all(isinstance(x, str) for x in c)):
+        q["condition"] = {"definition": c if isinstance(c, str) else " AND ".join(f"({x})" for x in c)}
+    errs: list[str] = []
+    _validate_node(q, {"$ref": "#/definitions/question"}, schema, where, errs)
+    if partial:
+        errs = [e for e in errs if "is a required property" not in e]
+    return [e.replace("[schema] ", "[update] ") for e in errs]
+
+
+def update_markup_in_create_file(data) -> list[str]:
+    """A normal (create) import rejects update markup."""
+    if not isinstance(data, dict):
+        return []
+    found = [k for k in ("updateMode", "baseVersion") if k in data]
+    for q in data.get("questions") or []:
+        if isinstance(q, dict) and ("update" in q or any("update" in i for n in ("answers", "rows") for i in _upd_items(q, n))):
+            found.append(f"update (question '{q.get('id')}')")
+            break
+    if not found:
+        return []
+    return [f"[update] {', '.join(found)} is only allowed in an update file (\"updateMode\": true). "
+            "A new survey has no update markup; to change an existing survey see references/task-update.md"]
+
+
+def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list[str]]:
+    """Validates a Survey Update Mode file. Returns (errors, warnings, review lines)."""
+    errors: list[str] = []
+    warnings: list[str] = []
+    E = lambda msg: errors.append(f"[update] {msg}")  # noqa: E731
+
+    # ---- the file on its own -------------------------------------------------
+    if not isinstance(data, dict) or data.get("updateMode") is not True:
+        return ["[update] not an update file: \"updateMode\": true is missing"], [], []
+    for k in data:
+        if k not in _UPDATE_FILE_KEYS:
+            E(f"'{k}' is not supported in an update file. Only questions can be updated.")
+    keys = list(data.keys())
+    if keys and keys[0] != "updateMode":
+        warnings.append("put updateMode, baseVersion and questions in that order")
+    base_version = data.get("baseVersion")
+    if not isinstance(base_version, str) or not base_version:
+        E("baseVersion is missing. Copy surveyVersion from the survey export the update is made from.")
+    elif not re.fullmatch(r"[0-9a-f]{8}", base_version):
+        E(f"baseVersion '{base_version}' is not a surveyVersion (8 hex characters from the survey export).")
+    questions = data.get("questions")
+    if not isinstance(questions, list):
+        E("the update file has no questions array.")
+        return errors, warnings, []
+
+    entries = []      # flagged: dict(id, action, change, oldId, placeAfter, hasPlaceAfter, note, body, index)
+    unflagged = []
+    for i, q in enumerate(questions):
+        qid = q.get("id") if isinstance(q, dict) else None
+        if not isinstance(qid, str) or not qid.strip():
+            E(f"question {i + 1} in the file has no id.")
+            continue
+        body = {k: v for k, v in q.items() if k != "update"}
+        if "update" not in q:
+            unflagged.append({"id": qid, "body": body, "index": i, "flagged": False})
+            continue
+        u = q["update"]
+        if not isinstance(u, dict):
+            E(f"{qid}: update must be an object.")
+            continue
+        for k in u:
+            if k not in _UPDATE_KEYS:
+                E(f"{qid}: unknown update property '{k}' (allowed: {', '.join(_UPDATE_KEYS)}).")
+        e = {"id": qid, "action": u.get("action"), "change": u.get("change"), "oldId": u.get("oldId"),
+             "hasPlaceAfter": "placeAfter" in u, "placeAfter": u.get("placeAfter"), "note": u.get("note"),
+             "body": body, "index": i, "flagged": True, "facets": set(), "flags": set()}
+        a = e["action"]
+        if a not in UPDATE_ACTIONS:
+            E(f"{qid}: action must be one of {', '.join(UPDATE_ACTIONS)}.")
+        if e["change"] is not None:
+            if e["change"] not in UPDATE_CHANGES:
+                E(f"{qid}: change must be one of {', '.join(UPDATE_CHANGES)}.")
+            if a not in ("edit", "replace"):
+                E(f"{qid}: change is only used with edit and replace.")
+        for k in ("oldId", "note"):
+            if u.get(k) is not None and not isinstance(u[k], str):
+                E(f"{qid}: update.{k} must be a string.")
+        if e["hasPlaceAfter"] and e["placeAfter"] is not None and not isinstance(e["placeAfter"], str):
+            E(f"{qid}: placeAfter must be a question id or null (= first).")
+        if e["hasPlaceAfter"] and a == "remove":
+            E(f"{qid}: a removed question cannot be placed (remove + placeAfter).")
+        if e["oldId"] is not None and a not in ("edit", "replace"):
+            E(f"{qid}: oldId is only used with edit and replace.")
+        if a in ("move", "remove") and any(k != "id" for k in body):
+            E(f"{qid}: {a} sends only the id. Use edit to change the question as well.")
+        if a == "move" and not e["hasPlaceAfter"]:
+            E(f"{qid}: move needs placeAfter.")
+        for name in ("answers", "rows"):
+            for item in _upd_items(q, name):
+                iu = item.get("update")
+                if iu is None:
+                    continue
+                if not isinstance(iu, dict) or any(k != "oldId" for k in iu) or not isinstance(iu.get("oldId"), str):
+                    E(f"{qid}: answers and rows only support update.oldId (removing an answer or row needs replace).")
+        if a == "edit":
+            for name in ("answers", "rows"):
+                if name in body and body[name] is None:
+                    E(f"{qid}: removing {name} needs replace.")
+                elif name in body and not isinstance(body[name], list):
+                    E(f"{qid}: {name} must be an array.")
+        if a in ("add", "replace", "edit"):
+            errors.extend(_upd_question_schema_errors(body, f"questions/{i} ({qid})", partial=(a == "edit")))
+        if a == "add" and "type" not in body and "text" not in body:
+            E(f"{qid}: a new question needs at least type and text.")
+        entries.append(e)
+
+    seen: dict[str, int] = {}
+    for e in entries:
+        seen[e["id"]] = seen.get(e["id"], 0) + 1
+    for qid, n in seen.items():
+        if n > 1:
+            E(f"{qid} has {n} entries. Combine the changes in one entry (e.g. edit with placeAfter).")
+    olds: dict[str, int] = {}
+    for e in entries:
+        if e["oldId"]:
+            olds[e["oldId"]] = olds.get(e["oldId"], 0) + 1
+    for o, n in olds.items():
+        if n > 1:
+            E(f"{o} is renamed by more than one entry.")
+    if not entries:
+        E("no question has an update object - nothing would change.")
+    if errors or base is None:
+        if base is None and not errors:
+            warnings.append("checked the file on its own. Add --base <survey export> to run the importer's checks "
+                            "(ids, merge, declared change, positions, references)")
+        return errors, warnings, []
+
+    # ---- against the base survey (the export the update is made from) -------
+    expected = base.get("surveyVersion") or survey_version(base)
+    if base_version != expected:
+        E(f"baseVersion {base_version} does not match the base survey ({expected}). The importer refuses it: "
+          "make the update from the latest export and copy its surveyVersion.")
+    defs = {c.get("id"): c.get("definition") for c in base.get("conditions") or []
+            if isinstance(c, dict) and isinstance(c.get("definition"), str)}
+    current = []
+    for q in base.get("questions") or []:
+        if isinstance(q, dict) and isinstance(q.get("id"), str):
+            q = copy.deepcopy(q)
+            _upd_inline_conditions(q, defs)
+            current.append(q)
+    current_by_id = {q["id"]: q for q in current}
+    current_order = [q["id"] for q in current]
+
+    # responses: the export's responses, if any (the importer reads the project's database)
+    responses = [r for r in base.get("responses") or [] if isinstance(r, dict)]
+    total = len(responses)
+
+    def responses_of(qid):
+        q = current_by_id.get(qid)
+        if not q or not total:
+            return 0
+        keys = {qid} | {r.get("id") for r in _upd_items(q, "rows")}
+        return sum(1 for r in responses if any(
+            v not in (None, "") and (k in keys or k.split(":")[0] in keys or k.startswith(qid + "."))
+            for k, v in r.items()))
+
+    # renames, resolved simultaneously
+    renames = {e["oldId"]: e["id"] for e in entries if e["oldId"] and e["action"] in ("edit", "replace")}
+    renamed_away = set(renames)
+    for e in entries:
+        a, qid = e["action"], e["id"]
+        e["currentId"] = None
+        if a == "add":
+            if qid in current_by_id:
+                if qid in renamed_away:
+                    E(f"{qid} was used before in this survey and is reserved. Choose another id.")
+                else:
+                    E(f"{qid} already exists. Use edit or replace to change it.")
+            continue
+        if e["oldId"]:
+            if e["oldId"] not in current_by_id:
+                E(f"{qid}: oldId {e['oldId']} does not exist.")
+            elif e["oldId"] == qid:
+                E(f"{qid}: oldId is the same as the id.")
+            elif qid in current_by_id and qid not in renamed_away:
+                E(f"{e['oldId']} cannot be renamed to {qid}: {qid} already exists.")
+            else:
+                e["currentId"] = e["oldId"]
+            continue
+        if qid in renamed_away:
+            E(f"{qid} is renamed in this file. Use its new id.")
+        elif qid not in current_by_id:
+            E(f"{qid} does not exist in the survey.")
+        else:
+            e["currentId"] = qid
+    for u in unflagged:
+        if u["id"] in renamed_away:
+            E(f"{u['id']} is renamed in this file. Use its new id.")
+    if errors:
+        return errors, warnings, []
+
+    # row renames: a renamed question's rows follow its prefix; explicit update.oldId on rows and answers
+    row_map: dict[str, str] = {}
+    answer_maps: dict[str, dict] = {}
+    for e in entries:
+        if e["action"] not in ("edit", "replace") or not e["currentId"]:
+            continue
+        cur = current_by_id[e["currentId"]]
+        if e["oldId"]:
+            for r in _upd_items(cur, "rows"):
+                rid = r.get("id")
+                if isinstance(rid, str) and rid.startswith(e["oldId"] + "."):
+                    row_map[rid] = e["id"] + rid[len(e["oldId"]):]
+        for name in ("answers", "rows"):
+            base_ids = [i.get("id") for i in _upd_items(cur, name)]
+            mapped = [row_map.get(i, i) for i in base_ids] if name == "rows" else base_ids
+            what = name[:-1]
+            item_map = {}
+            olds = {(x.get("update") or {}).get("oldId") for x in _upd_items(e["body"], name)
+                    if isinstance(x.get("update"), dict)}
+            for item in _upd_items(e["body"], name):
+                old = (item.get("update") or {}).get("oldId") if isinstance(item.get("update"), dict) else None
+                if not old:
+                    continue
+                iid = item.get("id")
+                if old not in base_ids and old not in mapped:
+                    E(f"{e['id']}: {what} oldId {old} does not exist.")
+                elif old == iid:
+                    E(f"{e['id']}: {what} {iid} has oldId equal to its id.")
+                elif iid in mapped and iid not in olds:
+                    E(f"{e['id']}: {what} {old} cannot be renamed to {iid}: {iid} already exists.")
+                else:
+                    item_map[old] = iid
+            if item_map:
+                e["facets"].add("rename")
+                if name == "rows":
+                    row_map.update(item_map)
+                else:
+                    answer_maps[e["id"]] = item_map
+                    if total:
+                        E(f"{e['id']}: answer ids cannot be renamed when the survey has responses "
+                          "(answer ids are stored values; a rename would recode them).")
+    if errors:
+        return errors, warnings, []
+
+    # the current survey under the new ids, references rewritten
+    qmap = dict(renames, **row_map)
+    renamed_current = {}
+    for q in current:
+        q = copy.deepcopy(q)
+        new_id = renames.get(q["id"], q["id"])
+        q["id"] = new_id
+        for r in _upd_items(q, "rows"):
+            if r.get("id") in row_map:
+                r["id"] = row_map[r["id"]]
+        for a in _upd_items(q, "answers"):
+            if a.get("id") in answer_maps.get(new_id, {}):
+                a["id"] = answer_maps[new_id][a["id"]]
+        _upd_rewrite(q, qmap, answer_maps)
+        renamed_current[new_id] = q
+    final_order = [renames.get(i, i) for i in current_order]
+    final = dict(renamed_current)
+
+    # merge
+    def merge_items(e, base_items, sent, name):
+        base_ids = [i.get("id") for i in base_items]
+        sent_items = [i for i in sent if isinstance(i, dict)]
+        sent_ids = [i.get("id") for i in sent_items]
+        for sid in set(sent_ids):
+            if sid is None or sent_ids.count(sid) > 1:
+                E(f"{e['id']}: {name} has a missing or repeated id ({sid}).")
+        complete = all(i in sent_ids for i in base_ids)
+        if not complete and len(base_ids) - sum(1 for i in base_ids if i in sent_ids) <= 2 \
+                and any(i in sent_ids for i in base_ids) and len(base_ids) > 2:
+            warnings.append(f"{e['id']}: {name} lists all but {len(base_ids) - sum(1 for i in base_ids if i in sent_ids)} "
+                            "existing id(s), so its order is ignored and new items go last. List every id to set the order.")
+        merged = {i.get("id"): copy.deepcopy(i) for i in base_items}
+        added = []
+        for s in sent_items:
+            sid = s.get("id")
+            if sid is None:
+                continue
+            target = merged.get(sid)
+            if target is None:
+                target = {}
+                merged[sid] = target
+                added.append(sid)
+            for k, v in s.items():
+                if k == "update":
+                    continue
+                if v is None:
+                    target.pop(k, None)
+                else:
+                    target[k] = copy.deepcopy(v)
+        order = [i for i in sent_ids if i is not None] if complete else base_ids + added
+        return [merged[i] for i in order]
+
+    for e in entries:
+        a = e["action"]
+        before = renamed_current.get(e["id"]) if e["currentId"] else None
+        e["before"] = before
+        if a == "add":
+            after = _upd_strip(e["body"])
+        elif a == "edit":
+            after = copy.deepcopy(before)
+            for k, v in e["body"].items():
+                if k == "id":
+                    continue
+                if k in ("answers", "rows"):
+                    if isinstance(v, list):
+                        after[k] = merge_items(e, _upd_items(before, k), v, k)
+                elif v is None:
+                    after.pop(k, None)
+                else:
+                    after[k] = copy.deepcopy(v)
+                if k == "condition":
+                    after.pop("conditionId", None)
+                if k == "conditionId":
+                    after.pop("condition", None)
+                    if v is not None:
+                        ids = v if isinstance(v, list) else [v]
+                        for cid in ids:
+                            if cid not in defs:
+                                E(f"{e['id']}: conditionId {cid} is not a condition of the survey. Use an inline condition.")
+                        _upd_inline_conditions(after, defs)
+        elif a == "replace":
+            after = _upd_strip(e["body"])
+            _upd_inline_conditions(after, defs)
+        elif a == "move":
+            after = copy.deepcopy(before)
+        else:  # remove
+            after = copy.deepcopy(before)
+            after["excluded"] = True
+        if after is not None:
+            after["id"] = e["id"]
+        e["after"] = after
+        final[e["id"]] = after
+    entry_by_id = {e["id"]: e for e in entries}
+
+    for u in unflagged:
+        if u["id"] not in renamed_current:
+            E(f"{u['id']} is not in the survey. A new question needs update.action = add.")
+        elif not _upd_same_content(u["body"], renamed_current[u["id"]]):
+            E(f"{u['id']} differs from the survey but has no update. Flag every changed question.")
+    if errors:
+        return errors, warnings, []
+
+    # a full file (lists every existing question): its array order is the final order
+    listed = {x["id"] for x in entries + unflagged}
+    is_full = bool(final_order) and all(i in listed for i in final_order)
+    if is_full:
+        removed = {e["id"] for e in entries if e["action"] == "remove"}
+        everything = sorted(entries + unflagged, key=lambda x: x["index"])
+        order = [x["id"] for x in everything if x["id"] not in removed]
+        for i, qid in enumerate(final_order):
+            if qid not in removed:
+                continue
+            j = i - 1
+            while j >= 0 and final_order[j] in removed and final_order[j] not in order:
+                j -= 1
+            order.insert(0 if j < 0 else order.index(final_order[j]) + 1, qid)
+        declared = {e["id"] for e in entries}
+        moved = _upd_moved(order, final_order, lambda i: 1 if i in declared else 2)
+        for idx, qid in enumerate(order):
+            x = next((y for y in everything if y["id"] == qid), None)
+            if x is None:
+                continue
+            pred = order[idx - 1] if idx else None
+            if x["flagged"] and x["action"] == "add":
+                x["hasPlaceAfter"], x["placeAfter"] = True, pred
+            elif qid in moved:
+                if x["flagged"]:
+                    x["hasPlaceAfter"], x["placeAfter"] = True, pred
+                else:
+                    E(f"{qid} changed position but has no update. Flag it (move, or edit with placeAfter).")
+            elif x["flagged"]:
+                x["hasPlaceAfter"], x["placeAfter"] = False, None
+    if errors:
+        return errors, warnings, []
+
+    # positions: entries in file order, placeAfter (null = first)
+    order = list(final_order)
+    for e in entries:
+        if e["after"] is None:
+            continue
+        if e["action"] == "add" or e["hasPlaceAfter"]:
+            if e["action"] != "add" and e["id"] in order:
+                order.remove(e["id"])
+            pa = e["placeAfter"]
+            if not e["hasPlaceAfter"]:
+                order.append(e["id"])
+            elif pa is None:
+                order.insert(0, e["id"])
+            elif pa == e["id"]:
+                E(f"{e['id']} cannot be placed after itself.")
+            elif pa in order:
+                order.insert(order.index(pa) + 1, e["id"])
+            elif pa in renames:
+                E(f"{e['id']}: placeAfter {pa} was renamed to {renames[pa]}. Use the new id.")
+            elif any(x["id"] == pa and x["action"] == "add" for x in entries):
+                E(f"{e['id']}: placeAfter {pa} is added later in the file. Put {pa} first.")
+            else:
+                E(f"{e['id']}: placeAfter {pa} does not exist.")
+    if errors:
+        return errors, warnings, []
+    declared = {e["id"] for e in entries if e["hasPlaceAfter"]}
+    moved = _upd_moved(order, final_order, lambda i: 1 if i in declared else 2)
+    for e in entries:
+        if e["action"] not in ("add", "remove") and e["id"] in moved:
+            e["facets"].add("position")
+    for qid in moved:
+        if qid not in entry_by_id:
+            E(f"{qid} changed position but has no update.")
+
+    # computed change against the declared one
+    level = {c: i for i, c in enumerate(UPDATE_CHANGES)}
+    for e in entries:
+        b, a = e["before"], e["after"]
+        if b is None or a is None:
+            continue
+        if e["action"] in ("edit", "replace"):
+            f, fl = e["facets"], e["flags"]
+            if e["oldId"]:
+                f.add("rename")
+            for k in set(b) | set(a):
+                if k in ("id", "answers", "rows") or b.get(k) == a.get(k):
+                    continue
+                if k in _UPDATE_TEXT_PROPS:
+                    f.add("text")
+                    if k in ("text", "surveyText") and not _is_typo_fix(b.get(k), a.get(k)):
+                        fl.add("reworded")
+                else:
+                    f.add("structure")
+                    fl.add("typeChanged" if k == "type" else "otherStructure")
+                if k not in _UPDATE_IN_PLACE and e["action"] == "edit":
+                    fl.add("rebuild")
+            ordinal = b.get("scale") == "Ordinal" or a.get("scale") == "Ordinal"
+            for name in ("answers", "rows"):
+                bi, ai = _upd_items(b, name), _upd_items(a, name)
+                bids, aids = [i.get("id") for i in bi], [i.get("id") for i in ai]
+                if any(i not in aids for i in bids):
+                    f.add("structure")
+                    fl.add("itemsRemoved")
+                if any(i not in bids for i in aids):
+                    f.add("additions")
+                kept = [i for i in bids if i in aids]
+                if kept != [i for i in aids if i in kept]:
+                    if ordinal and name == "answers":
+                        f.add("structure")
+                        fl.add("scaleReordered")
+                    else:
+                        f.add("order")
+                if any(bids.index(i) != aids.index(i) for i in kept):
+                    fl.add("itemPosition")
+                for i in kept:
+                    x, y = bi[bids.index(i)], ai[aids.index(i)]
+                    for k in set(x) | set(y):
+                        if k == "id" or x.get(k) == y.get(k):
+                            continue
+                        if k == "text":
+                            f.add("text")
+                            if not _is_typo_fix(x.get(k), y.get(k)):
+                                fl.add("labelChanged")
+                        else:
+                            f.add("structure")
+                            fl.add("otherStructure")
+        if e["action"] == "remove":
+            continue
+        if not e["facets"] and e["action"] != "add":
+            E(f"{e['id']} is flagged ({e['action']}) but nothing changes.")
+            continue
+        computed = max((level["structure"] if x == "rename" else level[x]
+                        for x in e["facets"] if x != "position"), default=-1)
+        if e["change"] in level and computed >= 0 and level[e["change"]] < computed:
+            E(f"{e['id']} claims change '{e['change']}', but the change is '{UPDATE_CHANGES[computed]}'.")
+
+    # the result: references in conditions and texts
+    final_qs = [final[i] for i in order]
+    index = {q["id"]: i for i, q in enumerate(final_qs)}
+    page, p = {}, 0
+    row_owner = {}
+    for i, q in enumerate(final_qs):
+        if i and q.get("pagebreak") is True:
+            p += 1
+        page[q["id"]] = p
+        for r in _upd_items(q, "rows"):
+            row_owner.setdefault(r.get("id"), q["id"])
+    known = lambda n: n in index or n in row_owner  # noqa: E731
+    removed_here = {e["id"] for e in entries if e["action"] == "remove"}
+    for i, q in enumerate(final_qs):
+        if q.get("excluded") is True:
+            continue
+        qid = q["id"]
+        for kind, name, answers in _upd_references(q, known):
+            target = name if name in index else row_owner[name]
+            if qid not in entry_by_id and target not in entry_by_id:
+                continue  # a problem the survey had before
+            t = final[target]
+            if target in removed_here:
+                E(f"{target} cannot be removed: the {kind} of {qid} still references it.")
+            elif t.get("excluded") is True:
+                E(f"The {kind} of {qid} references {name}, which is excluded from the survey.")
+            elif kind == "condition":
+                if target == qid or index[target] > i:
+                    E(f"The condition of {qid} references {name}, which does not come before it.")
+                else:
+                    aids = [x.get("id") for x in _upd_items(t, "answers")]
+                    for aid in answers:
+                        if aids and aid not in aids:
+                            E(f"The condition of {qid} references answer {aid} of {name}, which does not exist.")
+            elif target != qid and page[target] >= page[qid]:
+                E(f"A text of {qid} shows the answer to {name}, which is not on an earlier page.")
+
+    # data safety: responses are stored by answer/row position
+    for e in entries:
+        n = responses_of(e["currentId"]) if e.get("currentId") else 0
+        e["responses"] = n
+        if "itemPosition" in e["flags"] and n:
+            E(f"{e['id']}: existing answers or rows would change position, but the question has {n} responses stored "
+              "by position. Add new answers or rows last, and do not reorder or remove answers in the middle.")
+        if "rebuild" in e["flags"]:
+            warnings.append(f"{e['id']}: this edit changes more than texts, condition, page break, answers and rows, so "
+                            "the importer rebuilds the question - its translations are reset.")
+    if not total:
+        warnings.append("the base export has no responses, so the data checks assumed none. The importer counts "
+                        "the project's real responses: with data it refuses moving existing answers/rows and answer renames")
+
+    # the merged survey must still pass the normal checks (only problems the update introduces are reported)
+    def semantic_set(qs):
+        qs = copy.deepcopy(qs)
+        for q in qs:
+            c = q.get("condition")
+            if isinstance(c, str) or (isinstance(c, list) and c and all(isinstance(x, str) for x in c)):
+                q["condition"] = {"definition": c if isinstance(c, str) else " AND ".join(f"({x})" for x in c)}
+        return set(validate_semantics({"questions": qs}))
+    before_errs = semantic_set([renamed_current[i] for i in final_order])
+    for msg in sorted(semantic_set(final_qs) - before_errs):
+        errors.append(f"[result] {msg}")
+
+    # what the review dialog will show
+    review = []
+    if not errors:
+        has_data = total > 0
+        groups = {"attention": [], "new": [], "removed": [], "wording": [], "moved": [], "other": []}
+        for e in entries:
+            fl, f = e["flags"], e["facets"]
+            chips = []
+            if "typeChanged" in fl:
+                chips.append("Type changed")
+            else:
+                if "otherStructure" in fl:
+                    chips.append("Structure changed")
+                if "itemsRemoved" in fl:
+                    chips.append("Answer removed")
+                if "scaleReordered" in fl:
+                    chips.append("Scale reordered")
+            if has_data and "rename" in f:
+                chips.append("Renamed")
+            if has_data and "reworded" in fl and (e["after"] or {}).get("type") in ("single", "multiple"):
+                chips.append("Reworded")
+            if has_data and "labelChanged" in fl and "typeChanged" not in fl:
+                chips.append("Label changed")
+            if e["action"] == "add":
+                g = "new"
+            elif e["action"] == "remove":
+                g = "removed"
+                if e["responses"]:
+                    chips = [f"{e['responses']} responses"]
+            elif chips:
+                g = "attention"
+            elif f and f <= {"text"}:
+                g = "wording"
+            elif f and f <= {"position"}:
+                g = "moved"
+            else:
+                g = "other"
+            shown = e["oldId"] or e["id"]
+            groups[g].append(f"{shown}" + (f" [{', '.join(chips)}]" if chips else "") + (f" - {e['note']}" if e["note"] else ""))
+        titles = {"attention": "Needs attention", "new": "New questions", "removed": "Removed questions",
+                  "wording": "Wording only", "moved": "Moved only", "other": "Other safe changes"}
+        review.append(f"Review dialog: {len(entries)} questions changed" + (f", {total} responses" if total else ""))
+        for g, items in groups.items():
+            if items:
+                review.append(f"  {titles[g]} ({len(items)})")
+                review += [f"    {x}" for x in items]
+    return errors, warnings, review
+
+
 USAGE = (
     "Usage: python validate.py <path-to-survey.json> [--existing <project-survey.json>]\n"
     "  --existing: the survey of the project the file will be imported into (e.g. from get_survey).\n"
-    "              Conditions, calculations and coded sources may then refer to its questions."
+    "              Conditions, calculations and coded sources may then refer to its questions.\n"
+    "       python validate.py <update.json> [--base <survey-export.json>]\n"
+    "  An update file (\"updateMode\": true) changes an existing survey. --base: the survey export it is made\n"
+    "              from; runs the importer's checks against it."
 )
 
 
@@ -2314,6 +3192,7 @@ REFERENCE_HINTS = [
      "references/grid-interfaces.md"),
     (re.compile(r"text object|formatting tag|field '|participant field|'html'", re.I),
      "references/texts.md"),
+    (re.compile(r"^\[(update|result)\]"), "references/task-update.md"),
 ]
 
 
@@ -2326,20 +3205,23 @@ def main():
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     args = sys.argv[1:]
-    existing_path = None
-    if "--existing" in args:
-        i = args.index("--existing")
-        if i + 1 >= len(args):
-            print(USAGE)
-            sys.exit(2)
-        existing_path = Path(args[i + 1])
-        del args[i : i + 2]
+    options = {}
+    for opt in ("--existing", "--base"):
+        if opt in args:
+            i = args.index(opt)
+            if i + 1 >= len(args):
+                print(USAGE)
+                sys.exit(2)
+            options[opt] = Path(args[i + 1])
+            del args[i : i + 2]
     if len(args) != 1:
         print(USAGE)
         sys.exit(2)
+    existing_path = options.get("--existing")
+    base_path = options.get("--base")
 
     path = Path(args[0])
-    for p in (path, existing_path):
+    for p in (path, existing_path, base_path):
         if p is not None and not p.exists():
             print(f"ERROR: file not found: {p}")
             sys.exit(2)
@@ -2347,11 +3229,34 @@ def main():
     try:
         data = load_json(path)
         existing = load_json(existing_path).get("questions") if existing_path else None
+        base = load_json(base_path) if base_path else None
     except json.JSONDecodeError as e:
         print(f"[json] invalid JSON: {e}")
         sys.exit(1)
 
-    errors = validate_schema(data) + validate_semantics(data, existing)
+    if isinstance(data, dict) and "updateMode" in data:
+        errors, warnings, review = validate_update(data, base)
+        errors = list(dict.fromkeys(errors))
+        if errors:
+            print(f"FAILED: {len(errors)} problem(s) found in update file {path}")
+            for e in errors:
+                print(f"  - {e}")
+            for ref in reference_hints(errors):
+                print(f"  → read {ref} for this feature")
+            sys.exit(1)
+        n = sum(1 for q in data.get("questions", []) if isinstance(q, dict) and "update" in q)
+        print(f"OK: {path} is a valid update file ({n} changed questions"
+              + (f", checked against {base_path}" if base_path else "") + ")")
+        for line in review:
+            print(f"  {line}")
+        for w in warnings:
+            print(f"  ⚠ {w}")
+        sys.exit(0)
+    if base_path:
+        print("ERROR: --base is only used with an update file (\"updateMode\": true)")
+        sys.exit(2)
+
+    errors = validate_schema(data) + validate_semantics(data, existing) + update_markup_in_create_file(data)
 
     if errors:
         print(f"FAILED: {len(errors)} problem(s) found in {path}")

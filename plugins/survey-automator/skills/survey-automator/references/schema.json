@@ -7,6 +7,19 @@
   "required": ["questions"],
   "additionalProperties": false,
   "properties": {
+    "surveyVersion": {
+      "description": "Read-only version written by the survey export (8 hex characters). Copied to baseVersion when updating the survey; create imports ignore it. Never write it in a new survey.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}$"
+    },
+    "updateMode": {
+      "description": "Survey Update Mode: true makes the file an update of an existing survey (see references/task-update.md). An update file has only updateMode, baseVersion and questions.",
+      "type": "boolean"
+    },
+    "baseVersion": {
+      "description": "Update files only: the surveyVersion of the export the update is made from. The importer refuses a mismatch.",
+      "type": "string"
+    },
     "questions": {
       "description": "Ordered list of questions (and headers) that make up the survey.",
       "type": "array",
@@ -100,6 +113,26 @@
     }
   },
   "definitions": {
+    "update": {
+      "description": "Update files only: what an entry does. action add | edit (only what changes) | replace (whole question) | move | remove (soft delete). See references/task-update.md.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["action"],
+      "properties": {
+        "action": { "type": "string", "enum": ["add", "edit", "replace", "move", "remove"] },
+        "change": { "description": "edit/replace: the riskiest kind of change, text < order < additions < structure. Optional; the importer computes it and rejects an understated claim.", "type": "string", "enum": ["text", "order", "additions", "structure"] },
+        "placeAfter": { "description": "Id of the question to place this one after; null = first.", "type": ["string", "null"] },
+        "oldId": { "description": "edit/replace: the question's previous id when renaming it.", "type": "string" },
+        "note": { "description": "Short description shown in the review dialog.", "type": "string" }
+      }
+    },
+    "itemUpdate": {
+      "description": "Update files only: renames an answer or row (its previous id).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["oldId"],
+      "properties": { "oldId": { "type": "string" } }
+    },
     "text": {
       "title": "Text",
       "description": "A text shown in the survey (format-questions.md 'Texts'). A plain string with the formatting tags <b> <i> <u> <a href> <ul><li>, '\n' line breaks and {token}s: a bookmark {Q} / {Q.1} / {Q:3}, a participant field {First name}, {SPACE} / {EMPTY} / {Company name}, or a picture, video, sound or document link {url} / {url|text} (~/file = a file of the project's media library). An object only when a field needs settings ('fields') or the text is raw HTML code ('html').",
@@ -142,6 +175,7 @@
       "required": ["id", "type", "text"],
       "additionalProperties": false,
       "properties": {
+        "update": { "$ref": "#/definitions/update" },
         "id": {
           "description": "Unique identifier for the question (its client reference). Used as the key in response objects for non-matrix questions, and in expressions as {id}.",
           "type": "string"
@@ -311,6 +345,7 @@
       "required": ["id"],
       "additionalProperties": false,
       "properties": {
+        "update": { "$ref": "#/definitions/itemUpdate" },
         "id": {
           "description": "Unique row identifier, normally '<QuestionId>.<RowNumber>' (e.g. 'Aspects.1'). A row exported with its own reference keeps that id (e.g. 'price'). Used as the key in response objects.",
           "type": "string"
@@ -352,6 +387,7 @@
       "required": ["id"],
       "additionalProperties": false,
       "properties": {
+        "update": { "$ref": "#/definitions/itemUpdate" },
         "id": {
           "description": "Numeric string identifier. Used as the value stored in response objects for closed questions.",
           "type": "string"

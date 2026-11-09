@@ -1,26 +1,31 @@
-# Survey Automator skills for Claude
+# Survey Automator skill
 
-Claude skills from [Research Automators](https://www.researchautomators.com) for working with [Survey Automator](https://app.researchautomators.com).
+Your AI assistant builds and updates [Survey Automator](https://app.researchautomators.com) surveys. Works in Claude, ChatGPT and other assistants with skills.
 
-| Skill | What it does |
+## Download
+
+| Claude | [⬇ survey-automator.skill](https://github.com/Research-Automators/ra-skills-public/releases/latest/download/survey-automator.skill) |
 |---|---|
-| [survey-automator](plugins/survey-automator/skills/survey-automator/SKILL.md) | Builds surveys in the Survey Automator JSON import format from a prompt or a survey brief (Word, PDF, text), generates realistic example responses and participants, adds calculated variables and writes invitation messages. |
+| **ChatGPT and others** | [⬇ survey-automator.zip](https://github.com/Research-Automators/ra-skills-public/releases/latest/download/survey-automator.zip) |
 
 ## Install
 
-**Claude Code**
+Drag the file into a chat and write *"Add this skill please."*
 
-```
-/plugin marketplace add Research-Automators/ra-skills-public
-/plugin install survey-automator@research-automators
-```
+Or: **Claude** → Customize → Skills → upload. **ChatGPT** → add the .zip as a skill. **Claude Code** → `/plugin marketplace add Research-Automators/ra-skills-public`, then `/plugin install survey-automator@research-automators`.
 
-**Claude.ai / Claude Desktop**
+## Use
 
-Download `survey-automator.skill` from [Releases](../../releases) and upload it under **Customize → Skills**.
+Ask *"Create a customer satisfaction survey with 10 questions."* Import the JSON in Survey Automator: **New (empty) project → Import survey → From JSON**.
 
-Then ask Claude something like *"Create a customer satisfaction survey with 10 questions"* and import the JSON file into Survey Automator.
+## Update
+
+Download again, drag into a chat: *"Update this skill please."* Replace the old one, start a new chat, ask *"Which survey-automator version do you have?"*
 
 ## Licence
 
-Free to use **with Survey Automator only**. See [LICENSE](LICENSE).
+Survey Automator use only. See [LICENSE](LICENSE).
+
+---
+
+**Maintainers:** `scripts/package.sh [--dev] [name]` checks each skill and builds `dist/<name>.skill` + identical `.zip`. Shipped files must work on every platform. Release `<name>-<version>` on GitHub with both files, names unchanged.

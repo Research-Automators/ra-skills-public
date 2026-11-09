@@ -1,13 +1,13 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey. Skill version: 2026-10-22-1"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-1"
 ---
 
-Version: 2026-10-22-1
+Version: 2026-11-09-1
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-10-22-1)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-1)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 
@@ -15,13 +15,14 @@ Produce valid Survey Automator export JSON: survey definitions (`questions`) and
 
 ## Identify the task
 
-Five tasks. Pick one before doing anything else:
+Six tasks. Pick one before doing anything else:
 
 1. **Prompt to survey** — user describes a survey in free-form natural language. Read `references/task-prompt.md`.
 2. **Brief to survey** — user provides or attaches a structured survey brief (typically Word/PDF) with research objectives and a list of questions. Read `references/task-brief.md`.
 3. **Populate responses** — user provides existing Survey Automator JSON and asks for synthetic / mock / example / test responses or respondents. Read `references/task-responses.md`.
 4. **Generate participants** — user explicitly says "participants" (invite list, no survey answers). Read `references/task-participants.md`.
 5. **Generate invitation messages** — user explicitly asks for invitation emails, reminder emails or SMS, thank-you messages, or notifications to be sent to participants. Read `references/task-invitations.md`. Trigger words: "invitation email", "send-out", "SMS reminder", "thank-you email", "notification", "invitation copy". Do **not** trigger this task for end-of-flow screens shown to respondents inside the survey — those are handled by `surveyMessages` and covered in `references/messages.md`. If the user just says "messages" with no context, ask which of these two they mean.
+6. **Update existing survey** — user wants to change a survey that already exists in Survey Automator (reword, add, remove, move or rename questions or answers) and keep its data. Read `references/task-update.md`.
 
 Match the user's word, not the data shape. "Responses"/"respondents" → Task 3. "Participants" → Task 4. "Invitation"/"reminder"/"send-out" → Task 5.
 
@@ -41,6 +42,7 @@ If the user combines tasks (e.g. pastes JSON and asks to add new questions, then
    | 3 Populate responses | `task-responses.md`, `format-core.md`, `format-data.md`, `response-generation.md` |
    | 4 Generate participants | `task-participants.md`, `format-core.md`, `format-data.md`, `participants-example.json` |
    | 5 Invitation messages | `task-invitations.md`, `invitations.md`, `format-core.md` |
+   | 6 Update existing survey | `task-update.md`, `format-core.md`, `format-questions.md`, `example.json`, `update-example.json` |
 
    All are in `references/`. When in doubt about idiom, **mimic the example rather than reasoning from prose rules**.
 3. Do the task-specific work per its reference file.
@@ -60,7 +62,7 @@ This skill runs on several AI platforms, so check what the current environment c
 
 All under `references/` unless noted. The table under "Workflow" says what each task reads; the files below marked "on trigger" are read only when their trigger applies.
 
-- `task-prompt.md`, `task-brief.md`, `task-responses.md`, `task-participants.md`, `task-invitations.md` — one per task. Read only the active task's file.
+- `task-prompt.md`, `task-brief.md`, `task-responses.md`, `task-participants.md`, `task-invitations.md`, `task-update.md` — one per task. Read only the active task's file.
 - `format-core.md` — principles, top-level structure, key order, category questions, how to treat calculated variables. Every task.
 - `format-questions.md` — questions, answers, interfaces, groups, points, matrices and grids, conditions (incl. background data and what is not usable in them), texts and bookmarks. Authoring.
 - `format-data.md` — responses, built-in system fields, participants. Generating responses or participants.
@@ -71,7 +73,7 @@ All under `references/` unless noted. The table under "Workflow" says what each 
 - `calculated-variables.md` — on trigger: derived, grouped or recoded variables, coded open ends, period/category breakdowns, or a JSON that adds questions to an existing project.
 - `texts.md` — on trigger: the full `{token}` list, media and links, the text object form (conditional text) and raw HTML. Plain strings, formatting tags and bookmarks are in `format-questions.md`.
 - `grid-interfaces.md` — on trigger: `slider`, `dragdrop` and `ranking` grids, when asked for or already in the survey.
-- `example.json` — complete worked survey; the best teacher of idiom. `participants-example.json` — worked participants file.
+- `example.json` — complete worked survey; the best teacher of idiom. `participants-example.json` — worked participants file. `update-example.json` — worked update of `example.json` (Task 6).
 - `schema.json` — JSON Schema used by the validator.
 - `scripts/validate.py` — standard-library validator: schema checks plus semantic rules (no `type: "matrix"`, ordinal scales, interfaces, merge fields, calculated variables, texts and more). Run it as described above; there's no need to read its source.
 - `assets/research-automators-icon.svg` — icon shown for the skill in ChatGPT. Not used by the skill's instructions.

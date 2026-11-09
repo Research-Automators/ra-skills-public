@@ -1,0 +1,37 @@
+{
+  "updateMode": true,
+  "baseVersion": "081bf687",
+  "questions": [
+    {
+      "id": "Advise",
+      "text": "Best life advice",
+      "surveyText": "What is your best life advice?",
+      "update": { "action": "edit", "change": "text", "note": "Fixed spelling 'advise' → 'advice'" }
+    },
+    {
+      "id": "Gender",
+      "answers": [
+        { "id": "4", "type": "DontKnow", "text": "Prefer not to say" }
+      ],
+      "update": { "action": "edit", "change": "additions", "note": "Added 'Prefer not to say'" }
+    },
+    {
+      "id": "CountryOfResidence",
+      "update": { "action": "edit", "oldId": "Country", "placeAfter": "Gender", "note": "Descriptive id, moved next to Gender" }
+    },
+    {
+      "id": "LifeChange",
+      "type": "open",
+      "text": "Biggest improvement",
+      "surveyText": "What one change would improve your life the most?",
+      "answers": [
+        { "id": "0", "type": "Open", "charWidth": "40", "charHeight": "3", "placeholder": "Describe the change here" }
+      ],
+      "update": { "action": "add", "placeAfter": "Aspects", "note": "New open follow-up to the life satisfaction grid" }
+    },
+    {
+      "id": "Important",
+      "update": { "action": "remove", "note": "Dropped from this wave" }
+    }
+  ]
+}

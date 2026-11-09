@@ -14,6 +14,12 @@ If you can run JavaScript in the user's browser tab (e.g. Claude in Chrome) and 
 
 `surveyAutomator.help` lists the calls. If it isn't there (another page, or an older version of the platform), use the files as below.
 
+**From the report.** On the Dashboard and Report tabs (`surveyAutomator.reportScope()` is `true`), what happens in the report stays in the report. The update gets `"scope": "report"`, and the platform accepts only two kinds of change:
+- calculated variables hidden from respondents (`excluded: true`): add, edit, replace, move or remove them;
+- the report text of a question: send only `text`. The text respondents see is kept as its `surveyText`.
+
+Anything else is refused (`reportScopeSurveyChange`, `reportScopeVisible`). The review dialog says "Report changes only". For other changes, ask the user to open the Survey tab. You can also set the scope yourself: pass `{ scope: "report" }` as the second argument to `previewUpdate` and `openUpdateReview`, or write `"scope": "report"` in a file.
+
 ## Changing a survey you made earlier
 
 Without the browser API, write an update file against your latest version of the survey and leave out `baseVersion`, unless you have an export. End with one line: "If the import is refused because the survey has responses, or you've changed it in the editor or unticked changes in the review, export the survey and give me the export." If the user hasn't imported the survey yet, they import the full revised survey instead (Task 1 or 2): give it if they ask.
@@ -38,7 +44,7 @@ Read `format-core.md` and `format-questions.md` (and `example.json`) as well: ad
 ```
 
 - `updateMode: true`, then `baseVersion` = the export's `surveyVersion`, copied exactly. Never invent it. Leave it out only when you have no export and the survey has no responses: the importer then accepts the file and the review notes that changes made in the editor since may be overwritten. With responses a file without `baseVersion` is refused. A `baseVersion` that doesn't match the survey makes the review warn that the survey has changed, and the user has to confirm.
-- Only `questions`. Any other top-level key (`conditions`, `responses`, `surveyMessages`, `groups`, `messages`) is refused.
+- Only `questions` (and `scope`, see "From the report"). Any other top-level key (`conditions`, `responses`, `surveyMessages`, `groups`, `messages`) is refused.
 - Every changed question has an `update` object. Update markup is never allowed in a normal (create) import.
 
 ## The `update` object

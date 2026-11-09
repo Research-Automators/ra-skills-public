@@ -2313,7 +2313,7 @@ def collect_warnings(data) -> list[str]:
 
 UPDATE_ACTIONS = ("add", "edit", "replace", "move", "remove")
 UPDATE_CHANGES = ("text", "order", "additions", "structure")
-_UPDATE_FILE_KEYS = ("updateMode", "baseVersion", "questions")
+_UPDATE_FILE_KEYS = ("updateMode", "baseVersion", "scope", "questions")
 _UPDATE_KEYS = ("action", "change", "placeAfter", "oldId", "note")
 _UPDATE_TEXT_PROPS = {
     "text", "surveyText", "comment", "scaleLeft", "scaleRight", "scaleDK",
@@ -2681,6 +2681,8 @@ def _validate_update_once(data, base: dict | None) -> tuple[list[str], list[str]
     for k in data:
         if k not in _UPDATE_FILE_KEYS:
             E(f"'{k}' is not supported in an update file. Only questions can be updated.")
+    if "scope" in data and data["scope"] != "report":
+        E("scope must be \"report\" or left out.")
     keys = list(data.keys())
     if keys and keys[0] != "updateMode":
         warnings.append("put updateMode, baseVersion and questions in that order")

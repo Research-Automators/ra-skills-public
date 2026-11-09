@@ -67,21 +67,23 @@ A points count compared with a number (`[Q] >= 2`) fails on import when `Q` has 
 A coded question sorts the texts of open answers into its answers. `coded` names the sources; each answer's `codes` holds its match codes (comma-separated words or `/regex/i`). The answer's `text` counts as a code too. A text that matches no code gets the `Other` answer.
 
 ```json
-{ "id": "Reasons", "type": "multiple", "text": "Reasons (coded)", "excluded": true, "coded": "{Why}",
+{ "id": "Reasons", "type": "multiple", "text": "Reasons (coded)", "excluded": true, "coded": "Why",
   "answers": [
     { "id": "1", "text": "Price", "codes": "price, expensive, /cost(s)?/i" },
     { "id": "2", "type": "Other", "text": "Other" }
   ] }
 ```
 
+A source is not an expression: write it like its response key, **without braces**. The importer leaves out a source in braces.
+
 | Source | Meaning |
 |---|---|
-| `{Why}` | All open answers of the question |
-| `{Sat}.1` | All open answers of a grid row |
-| `{Comments}:{0}` | The question's own open answer |
-| `{Comments}:{3}` | Open answer `3` (by id); `{Comments}:A3` is the open answer at position 3 |
+| `Why` | All open answers of the question |
+| `Sat.1` | All open answers of a grid row (its id) |
+| `Comments:0` | The question's own open answer |
+| `Comments:3` | Open answer `3` (by id) |
 
-One source is a string; several sources are a list: `"coded": ["{Why}", "{Comments}:{3}"]`. Sources must be placed before the coded question. The long form is used only when a setting differs from its default:
+One source is a string; several sources are a list: `"coded": ["Why", "Comments:3"]`. Sources must be placed before the coded question. The long form is used only when a setting differs from its default:
 
 | Key | Default | Meaning |
 |---|---|---|
@@ -90,7 +92,7 @@ One source is a string; several sources are a list: `"coded": ["{Why}", "{Commen
 | `multipleCodes` | `true` on `multiple`, `false` on `single` | One text can get several codes |
 
 ```json
-"coded": { "sources": ["{Why}", "{Comments}:{3}"], "matchMode": "exact" }
+"coded": { "sources": ["Why", "Comments:3"], "matchMode": "exact" }
 ```
 
 **A coded question can't be used in a condition yet** (question `condition`, `screenout`/`error`, or a text field's `condition`): the coding is not done while the respondent answers. This changes when online coded variables are added. Coded questions are for reports; branch on a closed question instead. See [Not usable in conditions](format-questions.md#not-usable-in-conditions-coded-questions).

@@ -665,8 +665,10 @@ def _validate_condition(
 PERIOD_TYPES = ("Year", "HalfYear", "Quarter", "Month", "Week", "Day")
 GENERATED_TYPES = ("period", "categoryVariable")
 
-# a coded source: {Q}, {Grid}.N, {Row}, or a system id Q12 - optionally with an answer {id}, {0} or A<n>
-_SOURCE_RE = re.compile(r"^\s*(?:\{([^{}]*)\}|([^\s.:{}]+))(?:\.(\d+))?\s*(?::\s*(?:\{([^{}]*)\}|A(\d+)))?\s*$")
+# a coded source is not an expression: it is written like its response key, without braces (JSONImporter) - the question
+# or grid row id, optionally with an answer id after ":" - Why, Sat.1, Comments:0, Comments:3
+_SOURCE_RE = re.compile(r"^\s*([^\s:{}]+)\s*(?::\s*([^\s:{}]+))?\s*$")
+_SOURCE_FORMS = "Q, Grid.N, Q:0 (the question's own open answer) or Q:<answer id>"
 
 
 def _coded_sources(coded) -> list:
@@ -712,12 +714,18 @@ def _validate_rule(rule, is_open: bool, refs: _References, owner_position: int, 
 
 
 def _validate_coded_source(source, refs: _References, owner_position: int, where: str) -> list[str]:
+    if isinstance(source, str) and ("{" in source or "}" in source):
+        return [f"{where}: coded source {source!r} is in braces - write it like its response key, without braces: "
+                f"{_SOURCE_FORMS}. The importer leaves out a source in braces"]
     m = _SOURCE_RE.match(source) if isinstance(source, str) else None
     if not m:
-        return [f"{where}: coded source {source!r} is not a reference - use {{Q}}, {{Grid}}.N, {{Q}}:{{0}}, {{Q}}:{{id}} or {{Q}}:A<n>"]
-    ident = m.group(1) if m.group(1) is not None else m.group(2)
-    ref = (ident, int(m.group(3)) if m.group(3) else None)
-    q, row, position, error = refs.resolve(ref)
+        return [f"{where}: coded source {source!r} is not a source - use {_SOURCE_FORMS}"]
+    ident, answer_id = m.group(1), m.group(2)
+    q, row, position, error = refs.resolve((ident, None))
+    grid_row = re.match(r"^(.+)\.(\d+)$", ident)
+    if error and grid_row:
+        # a grid row by its position: Grid.N
+        q, row, position, error = refs.resolve((grid_row.group(1), int(grid_row.group(2))))
     if error:
         return [f"{where}: coded source {source!r} references {error}"]
     errors: list[str] = []
@@ -726,19 +734,13 @@ def _validate_coded_source(source, refs: _References, owner_position: int, where
     answers = [a for a in (q.get("answers") or []) if isinstance(a, dict)]
     if q.get("type") != "open" and not any(a.get("type") == "Open" for a in answers):
         errors.append(f"{where}: coded source {source!r} has no open answers to code")
-    answer_id, answer_position = m.group(4), m.group(5)
     if answer_id == "0":
         if not _has_own_open_answer(q):
-            errors.append(f"{where}: coded source {source!r}: the question has no open answer of its own ({{0}})")
+            errors.append(f"{where}: coded source {source!r}: the question has no open answer of its own (0)")
     elif answer_id is not None:
         a = next((a for a in answers if a.get("id") == answer_id), None)
         if a is None or a.get("type") != "Open":
-            errors.append(f"{where}: coded source {source!r}: answer {{{answer_id}}} is not an Open answer of the question")
-    elif answer_position is not None:
-        numbered = _numbered_answers(q)
-        n = int(answer_position)
-        if not (1 <= n <= len(numbered) and numbered[n - 1].get("type") == "Open"):
-            errors.append(f"{where}: coded source {source!r}: answer {n} is not an Open answer of the question")
+            errors.append(f"{where}: coded source {source!r}: answer {answer_id} is not an Open answer of the question")
     return errors
 
 
@@ -3087,6 +3089,10 @@ def _validate_update_once(data, base: dict | None) -> tuple[list[str], list[str]
                     fl.add("typeChanged" if k == "type" else "otherStructure")
                 if k not in _UPDATE_IN_PLACE and e["action"] == "edit":
                     fl.add("rebuild")
+            # the importer rebuilds a calculated question whose answers or rows change (rules live in its Calculation)
+            if e["action"] == "edit" and (_is_computed(b) or _is_computed(a)) and \
+                    (b.get("answers") != a.get("answers") or b.get("rows") != a.get("rows")):
+                fl.add("rebuild")
             ordinal = b.get("scale") == "Ordinal" or a.get("scale") == "Ordinal"
             for name in ("answers", "rows"):
                 bi, ai = _upd_items(b, name), _upd_items(a, name)
@@ -3193,6 +3199,10 @@ def _validate_update_once(data, base: dict | None) -> tuple[list[str], list[str]
     for e in entries:
         n = responses_of(e["currentId"]) if e.get("currentId") else 0
         e["responses"] = n
+        # a calculated variable's values are recomputed after the update: its answers may move. One that stops being
+        # calculated keeps its values as data, so the rules apply to it
+        if _is_computed(e.get("before") or {}) and _is_computed(e.get("after") or {}):
+            n = 0
         if "itemPosition" in e["flags"] and n:
             E(f"{e['id']}: existing answers or rows would change position, but the question has {n} responses stored "
               "by position. Add new answers or rows last, and do not reorder or remove answers in the middle.")
@@ -3204,8 +3214,8 @@ def _validate_update_once(data, base: dict | None) -> tuple[list[str], list[str]
             E(f"{e['id']}: changing the type from {tb} to {ta} would misread its {n} stored responses. Add a new "
               f"question with a new id and remove {e['id']} instead.")
         if "rebuild" in e["flags"]:
-            warnings.append(f"{e['id']}: this edit changes more than texts, condition, page break, answers and rows, so "
-                            "the importer rebuilds the question - its translations are reset.")
+            warnings.append(f"{e['id']}: this edit changes more than texts, condition, page break, answers and rows (or "
+                            "the answers of a calculated variable), so the importer rebuilds the question - its translations are reset.")
     if not total:
         warnings.append("the base export has no responses, so the data checks assumed none. The importer counts "
                         "the project's real responses: with data it refuses moving existing answers/rows and answer renames")

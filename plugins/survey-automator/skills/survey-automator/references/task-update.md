@@ -86,6 +86,14 @@ Responses are stored by answer and row **position**. On a question with response
 - prefer `remove` (soft delete) over reusing a question;
 - a reworded closed question or answer label is allowed, but tell the user it may break comparability with earlier answers.
 
+## Calculated variables
+
+An update file can add calculated variables (calculated, coded, period, category variable) with `add`, and change them with `edit` or `replace`. Write them as `calculated-variables.md` describes. In an `edit`, send the changed rule (`calculation`, `codes`, `period`, `category`) on the answer or question it belongs to.
+- The platform computes their values for all existing responses after the update, so the data-safety rules above don't apply to them: their answers may be reordered, relabelled or removed even with responses. A question that stops being calculated keeps its values as data, and then the rules apply.
+- An `edit` that changes their answers or rows rebuilds the question, so its translations are reset.
+- A coded source has no braces: `"coded": "Comments"`, or `"Comments:3"` for one open answer. The importer refuses `{Comments}` in an update.
+- A `multiple` question whose only answer is a calculated `Open` value stays `multiple` in the export. Keep it `multiple`.
+
 ## Rules
 
 - One entry per question id. Combine changes into one `edit`, e.g. a change plus `placeAfter`.

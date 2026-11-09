@@ -219,7 +219,7 @@
           "type": "boolean"
         },
         "coded": {
-          "description": "Coded open ends: the values are produced by matching the source open answers against each answer's 'codes'. One source as a string, several as a list, or an object when matchMode or multipleCodes differ from their defaults. Sources are references: {Q}, {Grid}.N, {Q}:{0} (the question's own open answer), {Q}:{id} or {Q}:A<n> (one open answer).",
+          "description": "Coded open ends: the values are produced by matching the source open answers against each answer's 'codes'. One source as a string, several as a list, or an object when matchMode or multipleCodes differ from their defaults. A source is written like its response key, without braces: Q, Grid.N, Q:0 (the question's own open answer) or Q:<answer id> (one open answer).",
           "type": ["string", "array", "object"],
           "items": { "type": "string" },
           "required": ["sources"],

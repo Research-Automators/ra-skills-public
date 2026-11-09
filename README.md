@@ -15,6 +15,12 @@ Clicking a link downloads the latest version. You don't need a GitHub account.
 
 ## Add it to your assistant
 
+**The quick way:** in most assistants you can just drag the downloaded file into a chat and write:
+
+> *Add this skill please.*
+
+If that doesn't work, use the steps for your assistant below.
+
 **Claude**
 1. Open [claude.ai](https://claude.ai) or the Claude app.
 2. Go to **Customize → Skills**.
@@ -38,7 +44,13 @@ Start a new chat and ask, for example:
 
 The assistant gives you a JSON file. In [Survey Automator](https://app.researchautomators.com), create a **New (empty) project**, then choose **Import survey → From JSON** and pick the file.
 
-When a new version comes out, download the file again and upload it the same way.
+## Update to a new version
+
+1. Download the file again with the link above. It's always the latest version.
+2. Add it the same way as before, for example by dragging it into a chat and writing *"Update this skill please."* If your assistant asks, replace the old version. Don't keep both: two copies can mix old and new instructions.
+3. Start a **new chat**, because open chats keep the old version. Ask *"Which version of survey-automator do you have?"*. The answer should match the newest version on the [releases page](https://github.com/Research-Automators/ra-skills-public/releases).
+
+If your organisation shares the skill with you, you get updates automatically once an admin has published them.
 
 Older versions and what changed in each are on the [releases page](https://github.com/Research-Automators/ra-skills-public/releases).
 

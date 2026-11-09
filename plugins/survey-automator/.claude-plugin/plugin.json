@@ -1,0 +1,7 @@
+{
+  "name": "survey-automator",
+  "description": "Build Survey Automator surveys, example responses and invitation messages with Claude.",
+  "author": { "name": "Research Automators", "url": "https://www.researchautomators.com" },
+  "homepage": "https://github.com/Research-Automators/ra-skills-public",
+  "license": "SEE LICENSE IN LICENSE"
+}

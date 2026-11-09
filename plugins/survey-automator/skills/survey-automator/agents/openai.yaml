@@ -1,0 +1,6 @@
+interface:
+  display_name: "Survey Automator"
+  short_description: "Build surveys and example responses for Survey Automator"
+  icon_small: "./assets/research-automators-icon.svg"
+  icon_large: "./assets/research-automators-icon.svg"
+  brand_color: "#6E328F"

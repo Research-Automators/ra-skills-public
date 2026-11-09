@@ -1,0 +1,11 @@
+{
+  "name": "research-automators",
+  "owner": { "name": "Research Automators", "url": "https://www.researchautomators.com" },
+  "plugins": [
+    {
+      "name": "survey-automator",
+      "source": "./plugins/survey-automator",
+      "description": "Build Survey Automator surveys, example responses and invitation messages with Claude."
+    }
+  ]
+}

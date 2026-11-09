@@ -1,0 +1,516 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "survey-export-schema.json",
+  "title": "Survey Export",
+  "description": "Export format for survey definitions and collected responses.",
+  "type": "object",
+  "required": ["questions"],
+  "additionalProperties": false,
+  "properties": {
+    "questions": {
+      "description": "Ordered list of questions (and headers) that make up the survey.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/question" }
+    },
+    "groups": {
+      "description": "Optional list of question groups (report sections). Each group has an 'id' and a 'label'. Questions reference a group via their 'groupId'. Alternative to the per-question 'group' string form.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label"],
+        "properties": {
+          "id": { "type": "string", "description": "Group identifier, referenced by a question's 'groupId'." },
+          "label": { "type": "string", "description": "Human-readable section heading shown in the report." }
+        }
+      }
+    },
+    "responses": {
+      "description": "List of individual survey responses. Each response is a flat key-value object where keys are question or row IDs.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/response" }
+    },
+    "participants": {
+      "description": "List of pre-loaded participants who will be invited to the survey. Each participant is a flat key-value object whose keys must reference 'system' or 'category' questions only — no survey-question keys (single/multiple/open/matrix). Used independently of 'responses'; a typical file uses one or the other, not both.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/response" }
+    },
+    "surveyMessages": {
+      "description": "Optional overrides for platform-level messages shown to respondents outside the question flow (thank-you screen, screened-out screen, etc.). When omitted, the platform shows its own defaults. All five message keys are optional; set only the ones you want to override.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "surveyComplete": {
+          "description": "Thank-you screen shown after the respondent submits their final answer.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "$ref": "#/definitions/text", "description": "Large heading shown at the top of the screen." },
+            "body":   { "$ref": "#/definitions/text", "description": "Main message text." },
+            "footer": { "$ref": "#/definitions/text", "description": "Smaller closing line below the body." },
+            "redirectURL": { "type": "string", "description": "Full URL the respondent is redirected to after the thank-you screen renders. Omit unless explicitly requested." }
+          }
+        },
+        "screenedOut": {
+          "description": "Screen shown when a screenout item fires and the respondent is exited before completing.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "$ref": "#/definitions/text" },
+            "body":   { "$ref": "#/definitions/text" },
+            "footer": { "$ref": "#/definitions/text" }
+          }
+        },
+        "invalidPassword": {
+          "description": "Screen shown when the respondent enters the wrong access password on a password-protected survey.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "$ref": "#/definitions/text" },
+            "body":   { "$ref": "#/definitions/text" },
+            "footer": { "$ref": "#/definitions/text" }
+          }
+        },
+        "alreadyCompleted": {
+          "description": "Screen shown when the respondent returns to the survey after having already submitted a response.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "$ref": "#/definitions/text" },
+            "body":   { "$ref": "#/definitions/text" },
+            "footer": { "$ref": "#/definitions/text" }
+          }
+        },
+        "surveyClosed": {
+          "description": "Screen shown when the respondent opens the link after fieldwork has been closed.",
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "header": { "$ref": "#/definitions/text" },
+            "body":   { "$ref": "#/definitions/text" },
+            "footer": { "$ref": "#/definitions/text" }
+          }
+        }
+      }
+    },
+    "messages": {
+      "description": "Optional outbound email and SMS messages sent to participants — invitations, reminders, thank-yous, and notifications. Not the same as 'surveyMessages' (which is end-of-flow screens). See 'invitations.md' for full reference.",
+      "type": "array",
+      "items": { "$ref": "#/definitions/message" }
+    }
+  },
+  "definitions": {
+    "text": {
+      "title": "Text",
+      "description": "A text shown in the survey (format-questions.md 'Texts'). A plain string with the formatting tags <b> <i> <u> <a href> <ul><li>, '\n' line breaks and {token}s: a bookmark {Q} / {Q.1} / {Q:3}, a participant field {First name}, {SPACE} / {EMPTY} / {Company name}, or a picture, video, sound or document link {url} / {url|text} (~/file = a file of the project's media library). An object only when a field needs settings ('fields') or the text is raw HTML code ('html').",
+      "type": ["string", "object"],
+      "additionalProperties": false,
+      "properties": {
+        "text": { "type": "string", "description": "The text, with {key} tokens for the fields in 'fields'." },
+        "html": { "type": "string", "description": "Raw HTML code instead of 'text'. {tokens} work here too." },
+        "fields": {
+          "type": "object",
+          "description": "The text's fields by key - a {key} token in the text shows the field.",
+          "additionalProperties": { "$ref": "#/definitions/textField" }
+        }
+      }
+    },
+    "textField": {
+      "title": "Text Field",
+      "description": "A field of a text object: a value from the survey, a picture, video, sound or link, or a conditional text. Any field can have a condition.",
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "type": "string", "enum": ["answer", "participant", "category", "conditionalText", "link", "picture", "video", "sound", "space", "empty", "companyName"] },
+        "condition": { "type": "string", "description": "The field is shown only when this expression is true (same syntax as condition.definition)." },
+        "question": { "type": "string", "description": "answer: the question or row id." },
+        "answer": { "type": "string", "description": "answer: the id of an open answer whose typed text is shown; '0' = the question's own open answer. Omit for the selected answers' texts." },
+        "field": { "type": "string", "description": "participant: the field, e.g. 'First name', 'Email', 'data3'." },
+        "category": { "type": "string", "description": "participant category path, e.g. 'region' or 'region:north'." },
+        "url": { "type": "string", "description": "link / picture / video / sound: the URL; ~/file = a file of the project's media library." },
+        "text": { "type": "string", "description": "conditionalText: the text shown. link: the link text. A plain string: formatting tags allowed, but {tokens} are not replaced and fields cannot be nested." },
+        "altText": { "type": "string", "description": "picture / video / sound: the alternative text. A plain string; {tokens} are not replaced." },
+        "width": { "type": ["integer", "string"], "description": "picture / video: width in pixels, or e.g. '50%'." },
+        "height": { "type": ["integer", "string"], "description": "picture / video: height in pixels, or e.g. '50%'." },
+        "controls": { "type": "boolean", "description": "video: show the player controls." }
+      }
+    },
+    "question": {
+      "title": "Question",
+      "type": "object",
+      "required": ["id", "type", "text"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique identifier for the question (its client reference). Used as the key in response objects for non-matrix questions, and in expressions as {id}.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Question type controlling both rendering and response format. 'period' and 'categoryVariable' are calculated variables with generated answers.",
+          "type": "string",
+          "enum": ["single", "multiple", "open", "header", "system", "category", "screenout", "error", "period", "categoryVariable"]
+        },
+        "layout": {
+          "description": "Optional, header items only. Written by the platform on export ('header'); never required when authoring.",
+          "type": "string",
+          "enum": ["header"]
+        },
+        "text": {
+          "description": "Internal label used in reporting and data exports.",
+          "$ref": "#/definitions/text"
+        },
+        "surveyText": {
+          "description": "Question text shown to respondents. Omitted for header and excluded questions.",
+          "$ref": "#/definitions/text"
+        },
+        "comment": {
+          "description": "Additional instruction or sub-heading displayed beneath the question text.",
+          "$ref": "#/definitions/text"
+        },
+        "group": {
+          "description": "Optional report section this question belongs to, given as a plain label string (e.g. 'About you'). The platform derives the set of groups from the distinct strings. Simplest form for authoring; do not combine with 'groupId' on the same question.",
+          "type": "string"
+        },
+        "groupId": {
+          "description": "Optional reference to a top-level 'groups' entry by its 'id'. Use this form when groups are declared in the top-level 'groups' array; do not combine with 'group' on the same question.",
+          "type": "string"
+        },
+        "excluded": {
+          "description": "When true the question is hidden from respondents - typically a calculated variable. Data is still present in responses. Default false, except on 'period' and 'categoryVariable' questions, which are hidden unless 'excluded': false.",
+          "type": "boolean"
+        },
+        "calculated": {
+          "description": "Only for a calculated question that has no rules yet: keeps the method. A question whose answers (or rows) have 'calculation' is calculated without this key.",
+          "type": "boolean"
+        },
+        "coded": {
+          "description": "Coded open ends: the values are produced by matching the source open answers against each answer's 'codes'. One source as a string, several as a list, or an object when matchMode or multipleCodes differ from their defaults. Sources are references: {Q}, {Grid}.N, {Q}:{0} (the question's own open answer), {Q}:{id} or {Q}:A<n> (one open answer).",
+          "type": ["string", "array", "object"],
+          "items": { "type": "string" },
+          "required": ["sources"],
+          "additionalProperties": false,
+          "properties": {
+            "sources": { "type": ["string", "array"], "items": { "type": "string" }, "description": "One source reference, or a list." },
+            "matchMode": { "type": "string", "enum": ["search", "exact"], "description": "Default 'search' (a code found anywhere in the text). 'exact': the whole text must equal a code." },
+            "multipleCodes": { "type": "boolean", "description": "One text can get several codes. Default true on 'multiple', false on 'single'." }
+          }
+        },
+        "period": {
+          "description": "type='period': the period type as a string, or an object when another setting differs from its default.",
+          "type": ["string", "object"],
+          "required": ["periodType"],
+          "additionalProperties": false,
+          "properties": {
+            "periodType": { "type": "string", "enum": ["Year", "HalfYear", "Quarter", "Month", "Week", "Day"] },
+            "periodBase": { "type": "string", "enum": ["EventDate", "Response", "ResponseStart"], "description": "Default 'EventDate'. Response = response end time, ResponseStart = response start time." },
+            "periodLength": { "type": "integer", "minimum": 1, "description": "Default 1." },
+            "calendarWeekRule": { "type": "string", "enum": ["FirstDay", "FirstFullWeek", "FirstFourDayWeek"] },
+            "firstDayOfWeek": { "type": "string", "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"] }
+          }
+        },
+        "category": {
+          "description": "type='categoryVariable': the category path (relative ids separated by ':') as a string, or an object when another setting differs from its default.",
+          "type": ["string", "object"],
+          "required": ["path"],
+          "additionalProperties": false,
+          "properties": {
+            "path": { "type": "string" },
+            "startLevel": { "type": "integer", "minimum": 0, "description": "Default 1." },
+            "endLevel": { "type": "integer", "minimum": 0, "description": "Default none." },
+            "sortPropertyName": { "type": ["string", "null"], "description": "Default 'Order'; null for no sorting." },
+            "sortPropertyIsNumeric": { "type": "boolean", "description": "Default false." },
+            "directConnections": { "type": "boolean", "description": "Default false." }
+          }
+        },
+        "min": {
+          "description": "Minimum number of answers the respondent must select or provide.",
+          "type": "integer",
+          "minimum": 0
+        },
+        "max": {
+          "description": "Maximum number of answers the respondent may select or provide.",
+          "type": "integer",
+          "minimum": 1
+        },
+        "interface": {
+          "description": "Hint for the survey renderer on how to display answer options. Recommended: buttons, dropdown, vertical. Grid-only special interfaces (use only when explicitly requested): slider (single-select grid, or numeric open grid with minValue/maxValue), dragdrop (single-select grid, drag rows into one box per answer), ranking (single-select grid, drag rows into rank order; answers are the rank positions). Rare grid legends, not recommended: alpha (automatic A,B,C legend), numeric (automatic 1,2,3 legend).",
+          "type": "string",
+          "enum": ["buttons", "dropdown", "vertical", "slider", "dragdrop", "ranking", "alpha", "numeric"]
+        },
+        "placeholder": {
+          "description": "Empty-state prompt text. On a 'dropdown' interface this is the unselected placeholder row shown before the respondent picks an option (e.g. 'Select a country…'). Ignored on other interfaces.",
+          "type": "string"
+        },
+        "noInterfaceValidation": {
+          "description": "When true, suppresses all advisory interface checks on this question: the long-label warning for interface='buttons', the recommendation to use 'buttons' for short/small answer sets, and the missing-placeholder reminder for dropdowns. Structural interface rules still apply. Set only when the chosen rendering is intentional.",
+          "type": "boolean"
+        },
+        "randomAnswers": {
+          "description": "When true, answer options are presented in a randomised order to each respondent.",
+          "type": "boolean"
+        },
+        "cssClass": {
+          "description": "Optional CSS class name(s) the renderer adds to this item's container, for layout/styling hooks. Space-separate multiple classes. Built-in: 'connectToPreviousItem' renders the item visually attached to the item before it (no section gap), e.g. a legal reference or note belonging to the previous question.",
+          "type": "string",
+          "examples": ["connectToPreviousItem"]
+        },
+        "pagebreak": {
+          "description": "When true, a page break is inserted before this item in the rendered survey. Most commonly set on section headers so each section starts at the top of a new page, but valid on any item.",
+          "type": "boolean"
+        },
+        "scale": {
+          "description": "Scale type. Set to 'Ordinal' on every question/grid whose answers form an ordered sequence; required when any answer is tagged Positive or Negative.",
+          "type": "string",
+          "examples": ["Ordinal"]
+        },
+        "scaleLeft": {
+          "description": "Label for the low/negative end of a scale.",
+          "$ref": "#/definitions/text"
+        },
+        "scaleRight": {
+          "description": "Label for the high/positive end of a scale.",
+          "$ref": "#/definitions/text"
+        },
+        "scaleDK": {
+          "description": "Label for the 'don't know' or neutral anchor of a scale.",
+          "$ref": "#/definitions/text"
+        },
+        "rows": {
+          "description": "Sub-items for matrix questions. Each row is answered independently using the shared answers list. Only present when the question acts as a matrix.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/row" }
+        },
+        "answers": {
+          "description": "Available answer options. Absent for 'header' type questions.",
+          "type": "array",
+          "items": { "$ref": "#/definitions/answer" }
+        },
+        "condition": {
+          "description": "Conditional display rule. The question is shown only when the rule evaluates to true based on prior responses.",
+          "type": "object",
+          "required": ["definition"],
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "description": "Human-readable summary of the rule. Not evaluated.",
+              "type": "string"
+            },
+            "definition": {
+              "description": "Expression evaluated against prior responses. Atoms have the form '{<QuestionId>}:{<AnswerId>}' (or '{<QuestionId>}.<RowNumber>:{<AnswerId>}' for matrix rows) and combine with 'OR' / 'AND' / 'NOT'. NOT is written directly before a parenthesis with no space: 'NOT({Gender}:{2})'. Example: '{Fulfilled}:{9} OR {Fulfilled}:{10} OR {Fulfilled}:{11}'. '[<QuestionId>]' or '[<QuestionId>.<RowNumber>]' in arithmetic position is the sum of answer points for that question, grid or grid row (e.g. '[Wellbeing] >= 10').",
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "row": {
+      "title": "Matrix Row",
+      "description": "A single statement or item within a matrix question. Responses are keyed by row ID.",
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Unique row identifier, normally '<QuestionId>.<RowNumber>' (e.g. 'Aspects.1'). A row exported with its own reference keeps that id (e.g. 'price'). Used as the key in response objects.",
+          "type": "string"
+        },
+        "text": {
+          "description": "Row label shown to the respondent. Omitted when the question is a single Likert row (i.e. one scale without sub-items).",
+          "$ref": "#/definitions/text"
+        },
+        "surveyText": {
+          "description": "Row text shown to respondents when it differs from the row label in 'text'.",
+          "$ref": "#/definitions/text"
+        },
+        "calculation": {
+          "description": "A calculated grid row: a map from grid answer id to that answer's rule (see calculationRule).",
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/calculationRule" }
+        },
+        "calculated": {
+          "description": "Only for a calculated row that has no rules yet.",
+          "type": "boolean"
+        }
+      }
+    },
+    "calculationRule": {
+      "title": "Calculation Rule",
+      "description": "The rule of a calculated answer. Short form: a string - the condition (the answer is selected when it is true), or on an 'Open' answer its value. Long form: an object with 'condition' and/or 'value' ('value' only on 'Open' answers) and 'disabled'.",
+      "type": ["string", "object"],
+      "additionalProperties": false,
+      "properties": {
+        "condition": { "type": "string", "description": "The answer is selected when this expression is true." },
+        "value": { "type": "string", "description": "Arithmetic expression: the value of an 'Open' answer." },
+        "disabled": { "type": "boolean", "description": "true switches the rule off. Default false." }
+      }
+    },
+    "answer": {
+      "title": "Answer Option",
+      "description": "A selectable option, or the definition of an open-text input, within a question.",
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Numeric string identifier. Used as the value stored in response objects for closed questions.",
+          "type": "string"
+        },
+        "type": {
+          "description": "Semantic classification of the answer. 'Open' marks a free-text input; 'Negative', 'Positive', and 'DontKnow' tag scale anchors for analysis.",
+          "type": "string",
+          "enum": ["Open", "Negative", "Positive", "DontKnow", "Other"]
+        },
+        "connectedTo": {
+          "description": "For Open answers attached to a closed-list option (typically an 'Other / please specify' pattern). The value is the id of another answer within the same question; the open input is shown when that option is selected.",
+          "type": "string"
+        },
+        "text": {
+          "description": "Display text shown on the answer button or label in the survey.",
+          "$ref": "#/definitions/text"
+        },
+        "surveyText": {
+          "description": "Alternative text shown in the survey when it differs from the internal label.",
+          "$ref": "#/definitions/text"
+        },
+        "symbolText": {
+          "description": "Short symbol or abbreviated label used in compact scale renderings (e.g. '0'–'10', '?').",
+          "$ref": "#/definitions/text"
+        },
+        "dataType": {
+          "description": "Expected data type for open-text inputs. When absent the input accepts any string.",
+          "type": "string",
+          "examples": ["integer"]
+        },
+        "minValue": {
+          "description": "Lowest allowed value for a numeric (dataType 'integer') Open input. Required on a numeric slider grid (interface 'slider' on a type 'open' grid), where it is the slider's left end.",
+          "type": "string",
+          "examples": ["0"]
+        },
+        "maxValue": {
+          "description": "Highest allowed value for a numeric (dataType 'integer') Open input. Required on a numeric slider grid, where it is the slider's right end.",
+          "type": "string",
+          "examples": ["100"]
+        },
+        "charWidth": {
+          "description": "Suggested visible character width of the open-text input field.",
+          "type": "string"
+        },
+        "charHeight": {
+          "description": "Suggested visible character height (rows) of the open-text input field.",
+          "type": "string"
+        },
+        "placeholder": {
+          "description": "Placeholder text displayed inside an empty open-text input.",
+          "type": "string"
+        },
+        "points": {
+          "description": "Points scored when this answer is selected (or, for an Open answer, when it is answered). Used by calculations and conditions via the '[QuestionId]' / '[QuestionId.RowNumber]' points reference, which sums the points of the respondent's answers. Default is 1 and is omitted from the JSON; only write it when the value differs from 1.",
+          "type": "number",
+          "examples": [3.0, 0, -1]
+        },
+        "exclusive": {
+          "description": "When true on an answer in a multiple-choice question, selecting this option deselects all others. Standard usage: a 'Don't know' or 'None of the above' escape option. Write a boolean (as the platform exports); the legacy strings 'true'/'false' are still accepted.",
+          "type": ["boolean", "string"],
+          "enum": [true, false, "true", "false"]
+        },
+        "calculation": {
+          "description": "Calculated question: this answer's rule.",
+          "$ref": "#/definitions/calculationRule"
+        },
+        "codes": {
+          "description": "Coded question: the answer's match codes - comma-separated words or /regex/i patterns.",
+          "type": "string"
+        },
+        "color": {
+          "description": "period / categoryVariable questions only: the report colour of a generated answer (e.g. '#e15759'). Such answers have only 'id' and 'color'.",
+          "type": "string"
+        }
+      }
+    },
+    "response": {
+      "title": "Response",
+      "description": "A single respondent's answers. Keys are question IDs (non-matrix) or row IDs (matrix rows). Values are always strings.",
+      "type": "object",
+      "additionalProperties": {
+        "description": "Answer value. Format depends on question type: a single answer ID for 'single'; semicolon-separated answer IDs for 'multiple'; the literal text for 'open'.",
+        "type": "string"
+      }
+    },
+    "message": {
+      "title": "Outbound Message",
+      "description": "An outbound email or SMS message sent to participants. Field requirements depend on messageType; see invitations.md.",
+      "type": "object",
+      "required": ["name", "sendType", "messageType", "senderName"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "Internal label for the message (e.g. 'Email invitation', 'First reminder'). Not shown to participants.",
+          "type": "string"
+        },
+        "sendType": {
+          "description": "When/who the message is sent to. 'invitation' = first send; 'reminder' = participants invited but not completed (auto-filtered); 'thanks' = participants who completed (auto-filtered); 'notification' = unconditional broadcast.",
+          "type": "string",
+          "enum": ["invitation", "reminder", "thanks", "notification"]
+        },
+        "messageType": {
+          "description": "Channel. 'email' uses subject/title/bodyBeforeLink/linkLabel/bodyAfterLink/footer/optOutLabel. 'sms' uses just body.",
+          "type": "string",
+          "enum": ["email", "sms"]
+        },
+        "senderName": {
+          "description": "Display name shown as the sender (e.g. 'Acme HR', 'Johnny').",
+          "type": "string"
+        },
+        "subject": {
+          "description": "Email subject line. Email only.",
+          "type": "string"
+        },
+        "title": {
+          "description": "Large heading at the top of the email body — typically a greeting like 'Hi #FirstName#,'. Email only.",
+          "type": "string"
+        },
+        "bodyBeforeLink": {
+          "description": "Main message text shown above the survey link button. Email only.",
+          "type": "string"
+        },
+        "linkLabel": {
+          "description": "Text of the survey-link button. The link itself is the built-in #DsLink# token. Email only.",
+          "type": "string"
+        },
+        "bodyAfterLink": {
+          "description": "Additional text shown below the survey-link button. Email only.",
+          "type": "string"
+        },
+        "footer": {
+          "description": "Smaller footer text — typically opt-out language. Email only.",
+          "type": "string"
+        },
+        "optOutLabel": {
+          "description": "Label for the unsubscribe link in the footer. Email only.",
+          "type": "string"
+        },
+        "body": {
+          "description": "Full SMS body. Must contain #DsLink# somewhere. SMS only.",
+          "type": "string"
+        },
+        "condition": {
+          "description": "Conditional send rule — only participants matching the condition receive this message. Atoms '{QuestionId}:{AnswerId}' combined with AND/OR and parentheses. No arithmetic, no comparisons.",
+          "type": "object",
+          "required": ["definition"],
+          "additionalProperties": false,
+          "properties": {
+            "label": {
+              "description": "Human-readable summary of the rule. Not evaluated.",
+              "type": "string"
+            },
+            "definition": {
+              "description": "Expression of '{QuestionId}:{AnswerId}' atoms combined with AND / OR / parentheses.",
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  }
+}

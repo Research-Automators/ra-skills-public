@@ -1,0 +1,90 @@
+{
+  "questions": [
+    {
+      "id": "External ID",
+      "type": "system",
+      "text": "External ID"
+    },
+    {
+      "id": "First Name",
+      "type": "system",
+      "text": "First Name"
+    },
+    {
+      "id": "Last Name",
+      "type": "system",
+      "text": "Last Name"
+    },
+    {
+      "id": "Phone",
+      "type": "system",
+      "text": "Phone"
+    },
+    {
+      "id": "Email",
+      "type": "system",
+      "text": "Email"
+    },
+    {
+      "id": "Event Date",
+      "type": "system",
+      "text": "Event Date"
+    },
+    {
+      "id": "gender",
+      "type": "category",
+      "text": "gender",
+      "answers": [
+        { "id": "Man", "text": "Man" },
+        { "id": "Woman", "text": "Woman" }
+      ]
+    },
+    {
+      "id": "Region",
+      "type": "category",
+      "text": "Region"
+    },
+    {
+      "id": "Test",
+      "type": "category",
+      "text": "Test",
+      "answers": [
+        { "id": "Test", "text": "Test" }
+      ]
+    }
+  ],
+  "participants": [
+    {
+      "External ID": "1234",
+      "First Name": "Kaiser",
+      "Last Name": "Söze",
+      "Phone": "+46123456789",
+      "Email": "kaiser@usual.com",
+      "Event Date": "20260127000000",
+      "gender": "Man",
+      "Region": "Stockholm",
+      "Test": "Test"
+    },
+    {
+      "External ID": "1235",
+      "First Name": "Verbal",
+      "Last Name": "Kint",
+      "Phone": "+46123456790",
+      "Email": "verbal@usual.com",
+      "Event Date": "20260127000000",
+      "gender": "Man",
+      "Region": "Göteborg",
+      "Test": "Test"
+    },
+    {
+      "External ID": "1236",
+      "First Name": "Edie",
+      "Last Name": "Finneran",
+      "Email": "edie@usual.com",
+      "Event Date": "20260127000000",
+      "gender": "Woman",
+      "Region": "Malmö",
+      "Test": "Test"
+    }
+  ]
+}

@@ -1,0 +1,170 @@
+{
+  "questions": [
+    {
+      "id": "Intro",
+      "type": "header",
+      "text": "Customer feedback survey",
+      "comment": "A short survey for current customers about your recent experience."
+    },
+    {
+      "id": "PurchaseFrequency",
+      "type": "single",
+      "text": "Purchase frequency",
+      "surveyText": "How often have you purchased from us in the last 12 months?",
+      "min": 1,
+      "max": 1,
+      "answers": [
+        {
+          "id": "1",
+          "text": "Once a month or more"
+        },
+        {
+          "id": "2",
+          "text": "Every 2-3 months"
+        },
+        {
+          "id": "3",
+          "text": "A couple of times a year"
+        },
+        {
+          "id": "4",
+          "text": "Once"
+        },
+        {
+          "id": "5",
+          "text": "Never"
+        }
+      ]
+    },
+    {
+      "id": "ScreenoutNonBuyer",
+      "type": "screenout",
+      "text": "Screenout: never purchased",
+      "surveyText": "Thanks for your interest! This survey is for current customers, so we won't take any more of your time. Have a great day.",
+      "condition": {
+        "label": "Never purchased",
+        "definition": "{PurchaseFrequency}:{5}"
+      }
+    },
+    {
+      "id": "WorkSection",
+      "type": "header",
+      "text": "About your work",
+      "comment": "A few questions about your current employment.",
+      "pagebreak": true
+    },
+    {
+      "id": "Employment",
+      "type": "single",
+      "text": "Employment status",
+      "surveyText": "Which best describes your current employment?",
+      "min": 1,
+      "max": 1,
+      "answers": [
+        {
+          "id": "1",
+          "text": "Employed full-time"
+        },
+        {
+          "id": "2",
+          "text": "Employed part-time"
+        },
+        {
+          "id": "3",
+          "text": "Self-employed"
+        },
+        {
+          "id": "4",
+          "text": "Not currently working"
+        }
+      ]
+    },
+    {
+      "id": "HoursLastWeek",
+      "type": "open",
+      "text": "Hours worked last week",
+      "surveyText": "Roughly how many hours did you work last week?",
+      "answers": [
+        {
+          "id": "0",
+          "type": "Open",
+          "dataType": "integer",
+          "charWidth": "5"
+        }
+      ]
+    },
+    {
+      "id": "ErrorEmploymentHours",
+      "type": "error",
+      "text": "Error: full-time but zero hours",
+      "surveyText": "You indicated you are employed full-time, but also that you worked 0 hours last week. Please go back and adjust one of these answers before continuing.",
+      "condition": {
+        "label": "FT but 0 hours",
+        "definition": "{Employment}:{1} AND {HoursLastWeek} = 0"
+      }
+    },
+    {
+      "id": "ErrorPartTimeOverwork",
+      "type": "error",
+      "text": "Error: part-time but over 40h",
+      "surveyText": "You indicated you work part-time, but also reported more than 40 hours last week. Please go back and adjust one of these answers before continuing.",
+      "condition": {
+        "label": "PT but >40h",
+        "definition": "{Employment}:{2} AND {HoursLastWeek} > 40"
+      }
+    },
+    {
+      "id": "SatisfactionSection",
+      "type": "header",
+      "text": "Your recent experience",
+      "pagebreak": true
+    },
+    {
+      "id": "Satisfaction",
+      "type": "single",
+      "text": "Overall satisfaction",
+      "surveyText": "You told us you purchase from us \"{PurchaseFrequency}\". How satisfied are you with your most recent purchase?",
+      "rows": [
+        {
+          "id": "Satisfaction.1"
+        }
+      ],
+      "min": 1,
+      "max": 1,
+      "scale": "Ordinal",
+      "scaleLeft": "Not satisfied at all",
+      "scaleRight": "Very satisfied",
+      "answers": [
+        {
+          "id": "1",
+          "type": "Negative",
+          "text": "1",
+          "symbolText": "1"
+        },
+        {
+          "id": "2",
+          "type": "Negative",
+          "text": "2",
+          "symbolText": "2"
+        },
+        {
+          "id": "3",
+          "text": "3",
+          "symbolText": "3"
+        },
+        {
+          "id": "4",
+          "type": "Positive",
+          "text": "4",
+          "symbolText": "4"
+        },
+        {
+          "id": "5",
+          "type": "Positive",
+          "text": "5",
+          "symbolText": "5"
+        }
+      ]
+    }
+  ]
+}

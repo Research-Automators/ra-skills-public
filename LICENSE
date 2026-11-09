@@ -1,0 +1,45 @@
+Survey Automator Skill License
+Version 1.0, November 2026
+
+Copyright (c) 2026 Research Automators AB. All rights reserved.
+
+1. Permitted use
+   Research Automators AB ("Licensor") grants you a free, non-exclusive,
+   worldwide licence to use, copy and modify the material in this repository
+   (the "Skills"), including their instructions, reference files, schemas and
+   scripts, solely to create, edit, validate, test or import content for use
+   with the Survey Automator platform provided by the Licensor.
+
+2. Restrictions
+   You may not:
+   a) use the Skills, or any part or derivative of them, to create content for,
+      or to import content into, any survey, form or data-collection product
+      other than Survey Automator;
+   b) use the Skills, or any part or derivative of them (including the JSON
+      format descriptions, schemas and validation code), to build, train or
+      improve a product or service that competes with Survey Automator, or to
+      enable migration of surveys away from Survey Automator;
+   c) sell, sublicense or otherwise make the Skills available to third parties
+      as a stand-alone product.
+   You may share unmodified or modified copies with others only together with
+   this licence, and their use is subject to the same terms.
+
+3. Trademarks
+   This licence does not grant any right to use the names "Survey Automator"
+   or "Research Automators", or related logos, except to identify the origin
+   of the Skills.
+
+4. No warranty
+   THE SKILLS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED. IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR
+   OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SKILLS OR THEIR USE.
+
+5. Termination
+   Any use outside the terms above automatically ends your rights under this
+   licence.
+
+6. Governing law
+   This licence is governed by Swedish law.
+
+Customers with a Survey Automator agreement: where that agreement conflicts
+with this licence, the agreement takes precedence.

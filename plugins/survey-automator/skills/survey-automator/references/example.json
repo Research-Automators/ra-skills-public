@@ -1,0 +1,388 @@
+{
+  "questions": [
+    {
+      "id": "Intro",
+      "type": "header",
+      "text": "The life survey",
+      "comment": "This survey explores what matters most in your life."
+    },
+    {
+      "id": "Gender",
+      "type": "single",
+      "text": "Gender",
+      "surveyText": "What is your gender?",
+      "comment": "Choose one alternative",
+      "min": 1,
+      "max": 1,
+      "interface": "buttons",
+      "answers": [
+        {
+          "id": "1",
+          "text": "Men",
+          "surveyText": "Male"
+        },
+        {
+          "id": "2",
+          "text": "Women",
+          "surveyText": "Female"
+        },
+        {
+          "id": "3",
+          "text": "Non-binary"
+        }
+      ]
+    },
+    {
+      "id": "Important",
+      "type": "multiple",
+      "text": "Most important in life",
+      "surveyText": "Which two of these aspects are most important in your life?",
+      "min": 2,
+      "max": 2,
+      "randomAnswers": true,
+      "answers": [
+        {
+          "id": "0",
+          "type": "Open",
+          "connectedTo": "9",
+          "charWidth": "25",
+          "charHeight": "2",
+          "placeholder": "Please describe what here"
+        },
+        {
+          "id": "1",
+          "text": "Health & physical well-being"
+        },
+        {
+          "id": "2",
+          "text": "Friends & social connection"
+        },
+        {
+          "id": "3",
+          "text": "Family & love"
+        },
+        {
+          "id": "4",
+          "text": "Career & financial stability"
+        },
+        {
+          "id": "5",
+          "text": "Knowledge & learning"
+        },
+        {
+          "id": "6",
+          "text": "Emotional well-being"
+        },
+        {
+          "id": "7",
+          "text": "Fun, hobbies & recreation"
+        },
+        {
+          "id": "8",
+          "text": "Making a difference"
+        },
+        {
+          "id": "9",
+          "text": "Something else",
+          "type": "Other"
+        },
+        {
+          "id": "10",
+          "text": "Don't know",
+          "type": "DontKnow",
+          "exclusive": true
+        }
+      ]
+    },
+    {
+      "id": "HeaderExample",
+      "type": "header",
+      "text": "Your life",
+      "pagebreak": true
+    },
+    {
+      "id": "Fulfilled",
+      "type": "single",
+      "text": "Fulfilled with life",
+      "surveyText": "How fulfilled are you are in life as a whole?",
+      "rows": [
+        {
+          "id": "Fulfilled.1"
+        }
+      ],
+      "min": 1,
+      "max": 1,
+      "scale": "Ordinal",
+      "scaleLeft": "Not fulfilled at all",
+      "scaleRight": "Very much fulfulled",
+      "scaleDK": "Not sure",
+      "answers": [
+        {
+          "id": "1",
+          "type": "Negative",
+          "text": "0",
+          "symbolText": "0"
+        },
+        {
+          "id": "2",
+          "type": "Negative",
+          "text": "1",
+          "symbolText": "1"
+        },
+        {
+          "id": "3",
+          "type": "Negative",
+          "text": "2",
+          "symbolText": "2"
+        },
+        {
+          "id": "4",
+          "type": "Negative",
+          "text": "3",
+          "symbolText": "3"
+        },
+        {
+          "id": "5",
+          "type": "Negative",
+          "text": "4",
+          "symbolText": "4"
+        },
+        {
+          "id": "6",
+          "type": "Negative",
+          "text": "5",
+          "symbolText": "5"
+        },
+        {
+          "id": "7",
+          "type": "Negative",
+          "text": "6",
+          "symbolText": "6"
+        },
+        {
+          "id": "8",
+          "text": "7",
+          "symbolText": "7"
+        },
+        {
+          "id": "9",
+          "text": "8",
+          "symbolText": "8"
+        },
+        {
+          "id": "10",
+          "type": "Positive",
+          "text": "9",
+          "symbolText": "9"
+        },
+        {
+          "id": "11",
+          "type": "Positive",
+          "text": "10",
+          "symbolText": "10"
+        }
+      ]
+    },
+    {
+      "id": "Aspects",
+      "type": "single",
+      "text": "Life satisfaction",
+      "surveyText": "Grade these aspects in your life currently:",
+      "rows": [
+        {
+          "id": "Aspects.1",
+          "text": "Health & physical well-being"
+        },
+        {
+          "id": "Aspects.2",
+          "text": "Friends & social connection"
+        },
+        {
+          "id": "Aspects.3",
+          "text": "Family & love"
+        },
+        {
+          "id": "Aspects.4",
+          "text": "Career & financial stability"
+        },
+        {
+          "id": "Aspects.5",
+          "text": "Knowledge & learning"
+        },
+        {
+          "id": "Aspects.6",
+          "text": "Emotional well-being"
+        },
+        {
+          "id": "Aspects.7",
+          "text": "Fun, hobbies & recreation"
+        },
+        {
+          "id": "Aspects.8",
+          "text": "Making a difference"
+        }
+      ],
+      "min": 1,
+      "max": 1,
+      "scale": "Ordinal",
+      "scaleLeft": "Not satisfied",
+      "scaleRight": "Fully satisfied",
+      "scaleDK": "Not sure",
+      "answers": [
+        {
+          "id": "1",
+          "type": "Negative",
+          "text": "1",
+          "symbolText": "1"
+        },
+        {
+          "id": "2",
+          "type": "Negative",
+          "text": "2",
+          "symbolText": "2"
+        },
+        {
+          "id": "3",
+          "type": "Negative",
+          "text": "3",
+          "symbolText": "3"
+        },
+        {
+          "id": "4",
+          "text": "4",
+          "symbolText": "4"
+        },
+        {
+          "id": "5",
+          "type": "Positive",
+          "text": "5",
+          "symbolText": "5"
+        },
+        {
+          "id": "6",
+          "type": "Positive",
+          "text": "6",
+          "symbolText": "6"
+        },
+        {
+          "id": "7",
+          "type": "Positive",
+          "text": "7",
+          "symbolText": "7"
+        },
+        {
+          "id": "8",
+          "type": "DontKnow",
+          "text": "?",
+          "symbolText": "?"
+        }
+      ]
+    },
+    {
+      "id": "Advise",
+      "type": "open",
+      "text": "Best life advise",
+      "surveyText": "What is your best life advise?",
+      "condition": {
+        "label": "High fulfillment in life",
+        "definition": "{Fulfilled}:{9} OR {Fulfilled}:{10} OR {Fulfilled}:{11}"
+      },
+      "answers": [
+        {
+          "id": "0",
+          "type": "Open",
+          "charWidth": "40",
+          "charHeight": "4",
+          "placeholder": "Share your best advise in life here"
+        }
+      ]
+    },
+    {
+      "id": "Country",
+      "type": "single",
+      "text": "Country of residence",
+      "surveyText": "In which country do you currently live?",
+      "min": 1,
+      "interface": "dropdown",
+      "placeholder": "Select a country…",
+      "answers": [
+        {
+          "id": "1",
+          "text": "Denmark"
+        },
+        {
+          "id": "2",
+          "text": "Finland"
+        },
+        {
+          "id": "3",
+          "text": "Iceland"
+        },
+        {
+          "id": "4",
+          "text": "Norway"
+        },
+        {
+          "id": "5",
+          "text": "Sweden"
+        }
+      ]
+    },
+    {
+      "id": "Age",
+      "type": "open",
+      "text": "Age",
+      "min": 1,
+      "excluded": true,
+      "answers": [
+        {
+          "id": "0",
+          "type": "Open",
+          "dataType": "integer"
+        }
+      ]
+    }
+  ],
+  "surveyMessages": {
+    "surveyComplete": {
+      "header": "Thank you!",
+      "body": "Your responses have been saved. We appreciate you taking the time to share what matters most in your life.",
+      "footer": "You may now close this window"
+    }
+  },
+  "responses": [
+    {
+      "Gender": "2",
+      "Important": "1;3",
+      "Fulfilled.1": "9",
+      "Aspects.8": "5",
+      "Aspects.1": "5",
+      "Aspects.5": "6",
+      "Aspects.4": "4",
+      "Aspects.6": "7",
+      "Aspects.2": "6",
+      "Aspects.3": "7",
+      "Aspects.7": "7",
+      "Advise": "Be positive and content with what you have.",
+      "Age": "67",
+      "Country": "5"
+    },
+    {
+      "Gender": "1",
+      "Important": "1;9",
+      "Important.9": "Inner peace and quiet mornings",
+      "Fulfilled.1": "9",
+      "Aspects.8": "6",
+      "Aspects.1": "6",
+      "Aspects.5": "7",
+      "Aspects.4": "7",
+      "Aspects.6": "6",
+      "Aspects.2": "5",
+      "Aspects.3": "7",
+      "Aspects.7": "5",
+      "Advise": "Live a social life. Talk to others. Keep your sense of humor close. Laugh often.",
+      "Age": "72",
+      "Country": "4"
+    }
+  ]
+}

@@ -6,11 +6,11 @@ Use Task 1 or 2 instead when the user wants a new survey, or a new copy of a sur
 
 ## In the browser: window.surveyAutomator
 
-If you can run JavaScript in the user's browser tab (e.g. Claude in Chrome's JavaScript tool) and the tab shows a Survey Automator project, check `typeof window.surveyAutomator`. If it is there, use it instead of asking for files. It runs in the user's own session and changes nothing by itself:
-- `surveyAutomator.project()`: `{ id, name, unsavedChanges }`. With `unsavedChanges`, ask the user to save first: the other calls see the saved survey.
-- `await surveyAutomator.getSurveyJson()`: the current export, with `surveyVersion`. Use it as the base and copy `surveyVersion` into `baseVersion`.
+If you can run JavaScript in the user's browser tab (e.g. Claude in Chrome) and the tab shows a Survey Automator project, check `typeof window.surveyAutomator`. If it is there, use it instead of asking for files. It runs in the user's own session:
+- `surveyAutomator.project()`: `{ id, name, unsavedChanges, questionCount }`. With `unsavedChanges`, ask the user to save first: the other calls see the saved survey. With `questionCount` 0 the project is empty: create the survey with `createSurvey` (see SKILL.md, "In the browser"), not with an update.
+- `await surveyAutomator.getSurveyJson()`: the current export, with `surveyVersion`. Use it as the base and copy `surveyVersion` into `baseVersion`. Read it again before every new round of changes: the user may have unticked something in the last review, or changed the survey in the editor.
 - `await surveyAutomator.previewUpdate(update)`: the server's checks. It returns `{ status: "review" | "errors", errors, review }` with every problem at once. Fix and repeat until the status is `review`. It does not change the survey.
-- `surveyAutomator.openUpdateReview(update)`: opens the review dialog. Tell the user to review and apply the changes there. You can't apply them yourself, and you shouldn't try to click Apply for the user. If the app asks about the project's edit lock, the user decides.
+- `surveyAutomator.openUpdateReview(update)`: opens the review dialog. Tell the user in one line what the update does, and that they review and apply it there. You can't apply it yourself, and you shouldn't click Apply for the user. If the app asks about the project's edit lock, the user decides.
 
 `surveyAutomator.help` lists the calls. If it isn't there (another page, or an older version of the platform), use the files as below.
 

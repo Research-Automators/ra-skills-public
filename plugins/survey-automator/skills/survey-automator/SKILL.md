@@ -1,13 +1,13 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-5"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-6"
 ---
 
-Version: 2026-11-09-5
+Version: 2026-11-09-6
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-5)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-6)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 
@@ -29,6 +29,16 @@ Match the user's word, not the data shape. "Responses"/"respondents" → Task 3.
 Adding calculated variables (grouped, recoded or coded variables, period or category variables) to a new or existing survey is Task 1 — read `references/calculated-variables.md` as well.
 
 If the user combines tasks (e.g. pastes JSON and asks to add new questions, then fill responses), do them in order: task 1's authoring step, then task 3's response generation. A survey + invitation messages combination is Task 1 or 2 first, then Task 5. If unsure which task applies, ask.
+
+## In the browser: a Survey Automator project open in the tab
+
+If you can run JavaScript in the user's browser tab (Claude in Chrome or a similar browser assistant) and the tab shows a Survey Automator project, check `typeof window.surveyAutomator`. If it is there, work in the project instead of handing over files. Call `window.surveyAutomator.project()` first: it gives `{ id, name, unsavedChanges, questionCount }`.
+
+- **Empty project** (`questionCount` 0), and the user wants a survey (Task 1 or 2): write the survey JSON as usual, and validate it if you can run the validator. Then call `await window.surveyAutomator.createSurvey(survey)`. It creates the survey at once, without a review, because an empty project has nothing to lose. If `status` is `errors`, fix them and call it again. When it's created, tell the user in a few lines what you made, and mention what `notImported` lists (e.g. `surveyMessages`, to set in the app).
+- **The project has questions**: every change is an update (Task 6), through the same API. See "In the browser" in `references/task-update.md`.
+- Don't offer a file for download in this mode unless the user asks for one. Never publish, and never click Apply for the user.
+
+If `window.surveyAutomator` isn't there (another page, or an older platform), deliver files as below.
 
 ## Workflow
 

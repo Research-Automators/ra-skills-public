@@ -2617,8 +2617,58 @@ def update_markup_in_create_file(data) -> list[str]:
             "A new survey has no update markup; to change an existing survey see references/task-update.md"]
 
 
+_ROW_POSITION_MSG = re.compile(r"row id '[^']*' in question '[^']*' is row \d+")
+
+
 def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list[str]]:
-    """Validates a Survey Update Mode file. Returns (errors, warnings, review lines)."""
+    """Validates a Survey Update Mode file. Returns (errors, warnings, review lines). The checks run in stages and stop
+    at the first stage with errors, so - as the importer does - the file is checked again with the failed entries left
+    out (a failed edit as the question is in the base, a failed add dropped, and every entry referring to a dropped
+    one), until no new error turns up. Errors that name no entry (file level) stop it."""
+    errors, warnings, review = _validate_update_once(data, base)
+    if not errors or base is None or not isinstance(data, dict) or not isinstance(data.get("questions"), list):
+        return errors, warnings, review
+    all_errors = list(errors)
+    base_by_id = {q.get("id"): q for q in base.get("questions") or [] if isinstance(q, dict)}
+    questions = [q for q in data["questions"] if isinstance(q, dict) and isinstance(q.get("id"), str)]
+    ids = [q["id"] for q in questions]
+    names = lambda m: {i for i in ids if re.search(r"(?<![\w.])" + re.escape(i) + r"(?!\w)", m)}  # noqa: E731
+    for _ in range(10):
+        if any(not names(m) for m in all_errors):
+            break
+        dropped = set().union(*(names(m) for m in all_errors))
+        changed = True
+        while changed:
+            changed = False
+            for q in questions:
+                if q["id"] in dropped:
+                    continue
+                u = q.get("update") if isinstance(q.get("update"), dict) else {}
+                if u.get("placeAfter") in dropped or any("{" + d + "}" in json.dumps(q, ensure_ascii=False) for d in dropped):
+                    dropped.add(q["id"])
+                    changed = True
+        reduced = []
+        for q in questions:
+            if q["id"] not in dropped:
+                reduced.append(q)
+                continue
+            u = q.get("update") if isinstance(q.get("update"), dict) else {}
+            cur = base_by_id.get(u.get("oldId") or q["id"])
+            if cur is not None:
+                reduced.append(copy.deepcopy(cur))
+        if not any("update" in q for q in reduced):
+            break
+        again = dict(data, questions=reduced)
+        more, _, _ = _validate_update_once(again, base)
+        fresh = [m for m in more if m not in all_errors]
+        if not fresh:
+            break
+        all_errors += fresh
+    return all_errors, warnings, []
+
+
+def _validate_update_once(data, base: dict | None) -> tuple[list[str], list[str], list[str]]:
+    """One run of the update checks (validate_update repeats it to report every problem)."""
     errors: list[str] = []
     warnings: list[str] = []
     E = lambda msg: errors.append(f"[update] {msg}")  # noqa: E731
@@ -2633,9 +2683,9 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
     if keys and keys[0] != "updateMode":
         warnings.append("put updateMode, baseVersion and questions in that order")
     base_version = data.get("baseVersion")
-    if not isinstance(base_version, str) or not base_version:
-        E("baseVersion is missing. Copy surveyVersion from the survey export the update is made from.")
-    elif not re.fullmatch(r"[0-9a-f]{8}", base_version):
+    if base_version is None:
+        pass  # accepted while the survey has no responses (checked against --base below)
+    elif not isinstance(base_version, str) or not re.fullmatch(r"[0-9a-f]{8}", base_version):
         E(f"baseVersion '{base_version}' is not a surveyVersion (8 hex characters from the survey export).")
     questions = data.get("questions")
     if not isinstance(questions, list):
@@ -2722,13 +2772,15 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
         if base is None and not errors:
             warnings.append("checked the file on its own. Add --base <survey export> to run the importer's checks "
                             "(ids, merge, declared change, positions, references)")
+            if base_version is None:
+                warnings.append("no baseVersion: the importer accepts that only while the survey has no responses")
         return errors, warnings, []
 
     # ---- against the base survey (the export the update is made from) -------
     expected = base.get("surveyVersion") or survey_version(base)
-    if base_version != expected:
-        E(f"baseVersion {base_version} does not match the base survey ({expected}). The importer refuses it: "
-          "make the update from the latest export and copy its surveyVersion.")
+    if base_version is not None and base_version != expected:
+        E(f"baseVersion {base_version} does not match the base survey ({expected}). Make the update from the latest "
+          "export and copy its surveyVersion (the review would warn that the survey changed since the export).")
     defs = {c.get("id"): c.get("definition") for c in base.get("conditions") or []
             if isinstance(c, dict) and isinstance(c.get("definition"), str)}
     current = []
@@ -2746,6 +2798,13 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
     # responses: the export's responses, if any (the importer reads the project's database)
     responses = [r for r in base.get("responses") or [] if isinstance(r, dict)]
     total = len(responses)
+    if base_version is None:
+        if total:
+            E("baseVersion is missing and the survey has responses: the importer refuses it. Copy surveyVersion "
+              "from the latest export.")
+        else:
+            warnings.append("no baseVersion: accepted because the survey has no responses. The review notes that "
+                            "changes made in the editor since may be overwritten")
 
     def responses_of(qid):
         q = current_by_id.get(qid)
@@ -2862,10 +2921,12 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
             if sid is None or sent_ids.count(sid) > 1:
                 E(f"{e['id']}: {name} has a missing or repeated id ({sid}).")
         complete = all(i in sent_ids for i in base_ids)
-        if not complete and len(base_ids) - sum(1 for i in base_ids if i in sent_ids) <= 2 \
-                and any(i in sent_ids for i in base_ids) and len(base_ids) > 2:
-            warnings.append(f"{e['id']}: {name} lists all but {len(base_ids) - sum(1 for i in base_ids if i in sent_ids)} "
-                            "existing id(s), so its order is ignored and new items go last. List every id to set the order.")
+        # a partial list in a new order would be ignored: almost always a reorder that missed items (importer: partialReorder)
+        listed = [i for i in sent_ids if i is not None and i in base_ids]
+        if not complete and listed != [i for i in base_ids if i in listed]:
+            missing = [str(i) for i in base_ids if i not in sent_ids]
+            E(f"{e['id']}: the {name} are in a new order, but {', '.join(missing)} {'is' if len(missing) == 1 else 'are'} "
+              "not listed. To reorder, list every one of them, or use replace.")
         merged = {i.get("id"): copy.deepcopy(i) for i in base_items}
         added = []
         for s in sent_items:
@@ -3030,9 +3091,13 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
             for name in ("answers", "rows"):
                 bi, ai = _upd_items(b, name), _upd_items(a, name)
                 bids, aids = [i.get("id") for i in bi], [i.get("id") for i in ai]
+                what = name[:-1]
                 if any(i not in aids for i in bids):
                     f.add("structure")
                     fl.add("itemsRemoved")
+                    e.setdefault("removed", []).extend(
+                        f"{what} {x.get('id')}" + (f" ({_upd_plain(x.get('text'))})" if _upd_plain(x.get('text')) else "")
+                        for x in bi if x.get("id") not in aids)
                 if any(i not in bids for i in aids):
                     f.add("additions")
                 kept = [i for i in bids if i in aids]
@@ -3053,6 +3118,13 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
                             f.add("text")
                             if not _is_typo_fix(x.get(k), y.get(k)):
                                 fl.add("labelChanged")
+                            # the new label is what another existing item said before: the labels moved
+                            new = _upd_plain(y.get(k))
+                            owner = next((o for o in bi if o.get("id") != i and o.get("id") in aids and new
+                                          and _upd_plain(o.get("text")) == new), None)
+                            if owner is not None:
+                                e.setdefault("moved_labels", []).append(
+                                    f"{what} {i} would read '{new}', the label of {what} {owner.get('id')}")
                         else:
                             f.add("structure")
                             fl.add("otherStructure")
@@ -3064,7 +3136,21 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
         computed = max((level["structure"] if x == "rename" else level[x]
                         for x in e["facets"] if x != "position"), default=-1)
         if e["change"] in level and computed >= 0 and level[e["change"]] < computed:
-            E(f"{e['id']} claims change '{e['change']}', but the change is '{UPDATE_CHANGES[computed]}'.")
+            reasons = []
+            if "typeChanged" in e["flags"]:
+                reasons.append("the type changed")
+            if e.get("removed"):
+                reasons.append(", ".join(e["removed"]) + " would be removed")
+            if "scaleReordered" in e["flags"]:
+                reasons.append("the answers of an Ordinal scale were reordered")
+            if "rename" in e["facets"]:
+                reasons.append("an id was renamed")
+            if "order" in e["facets"]:
+                reasons.append("answers or rows were reordered")
+            if "additions" in e["facets"]:
+                reasons.append("answers or rows were added")
+            why = f" ({', '.join(reasons)})" if reasons else ""
+            E(f"{e['id']} claims change '{e['change']}', but the change is '{UPDATE_CHANGES[computed]}'{why}.")
 
     # the result: references in conditions and texts
     final_qs = [final[i] for i in order]
@@ -3110,6 +3196,13 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
         if "itemPosition" in e["flags"] and n:
             E(f"{e['id']}: existing answers or rows would change position, but the question has {n} responses stored "
               "by position. Add new answers or rows last, and do not reorder or remove answers in the middle.")
+        if e.get("moved_labels") and n:
+            E(f"{e['id']}: {'; '.join(e['moved_labels'])}. The question has {n} responses, so those stored answers "
+              "would change meaning. Keep the existing labels and add new answers instead.")
+        tb, ta = (e.get("before") or {}).get("type"), (e.get("after") or {}).get("type")
+        if n and tb and ta and tb != ta and (tb == "open") != (ta == "open"):
+            E(f"{e['id']}: changing the type from {tb} to {ta} would misread its {n} stored responses. Add a new "
+              f"question with a new id and remove {e['id']} instead.")
         if "rebuild" in e["flags"]:
             warnings.append(f"{e['id']}: this edit changes more than texts, condition, page break, answers and rows, so "
                             "the importer rebuilds the question - its translations are reset.")
@@ -3119,6 +3212,10 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
 
     # the merged survey must still pass the normal checks (only problems the update introduces are reported)
     def semantic_set(qs):
+        # an update may insert a row anywhere: existing rows keep their ids, so ids need not match positions
+        return {m for m in _semantic_set(qs) if not _ROW_POSITION_MSG.search(m)}
+
+    def _semantic_set(qs):
         qs = copy.deepcopy(qs)
         for q in qs:
             c = q.get("condition")

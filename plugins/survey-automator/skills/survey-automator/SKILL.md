@@ -1,13 +1,13 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-2"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-4"
 ---
 
-Version: 2026-11-09-2
+Version: 2026-11-09-4
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-2)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-4)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 
@@ -22,7 +22,7 @@ Six tasks. Pick one before doing anything else:
 3. **Populate responses** — user provides existing Survey Automator JSON and asks for synthetic / mock / example / test responses or respondents. Read `references/task-responses.md`.
 4. **Generate participants** — user explicitly says "participants" (invite list, no survey answers). Read `references/task-participants.md`.
 5. **Generate invitation messages** — user explicitly asks for invitation emails, reminder emails or SMS, thank-you messages, or notifications to be sent to participants. Read `references/task-invitations.md`. Trigger words: "invitation email", "send-out", "SMS reminder", "thank-you email", "notification", "invitation copy". Do **not** trigger this task for end-of-flow screens shown to respondents inside the survey — those are handled by `surveyMessages` and covered in `references/messages.md`. If the user just says "messages" with no context, ask which of these two they mean.
-6. **Update existing survey** — user wants to change a survey that already exists in Survey Automator (reword, add, remove, move or rename questions or answers) and keep its data. Read `references/task-update.md`.
+6. **Update existing survey** — user wants to change a survey that already exists in Survey Automator (reword, add, remove, move or rename questions or answers) and keep its data, including asking for changes to a survey you made earlier once it has been imported. Read `references/task-update.md` (its first section says which file to give).
 
 Match the user's word, not the data shape. "Responses"/"respondents" → Task 3. "Participants" → Task 4. "Invitation"/"reminder"/"send-out" → Task 5.
 

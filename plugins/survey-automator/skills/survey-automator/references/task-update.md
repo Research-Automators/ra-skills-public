@@ -83,7 +83,7 @@ Responses are stored by answer and row **position**. On a question with response
 ## Two forms: changes-only (default) and full
 
 - **Changes-only** (default): only the entries with `update`, in the order they should apply. Positions come from `placeAfter`, and an entry may be placed after a question added earlier in the file. Keep `edit`s minimal.
-- **Full**: give it when the user wants to review the whole new version. Every question appears in its final order, and the changed ones carry `update`. Array order is the new order, so `placeAfter` is optional. Questions without `update` must match the export **exactly**, with one change: replace each `"conditionId"` with `"condition"`, set to that condition's `definition` string from the export's `conditions`. A moved question still needs an `update`: `move` with `placeAfter`, or an `edit` of its full content.
+- **Full**: give it when the user wants to review the whole new version. Every question appears in its final order, and the changed ones carry `update`. Array order is the new order, so `placeAfter` is optional. Questions without `update` must match the export exactly. A moved question still needs an `update`: `move` with `placeAfter`, or an `edit` of its full content.
 
 ## Validate and deliver
 

@@ -2534,7 +2534,9 @@ def _upd_inline_conditions(q: dict, defs: dict) -> None:
     if cid is None:
         return
     ids = cid if isinstance(cid, list) else [cid]
-    found = [defs[i] for i in ids if isinstance(i, str) and i in defs]
+    if not all(isinstance(i, str) and i in defs for i in ids):
+        return  # like the importer: left as it is when a condition has no definition
+    found = [defs[i] for i in ids]
     q.pop("conditionId")
     if "condition" not in q and found:
         q["condition"] = found[0] if len(found) == 1 else found
@@ -2736,6 +2738,9 @@ def validate_update(data, base: dict | None) -> tuple[list[str], list[str], list
             _upd_inline_conditions(q, defs)
             current.append(q)
     current_by_id = {q["id"]: q for q in current}
+    # the importer reads conditionId in the file's entries as the inline condition, as in the current survey
+    for x in entries + unflagged:
+        _upd_inline_conditions(x["body"], defs)
     current_order = [q["id"] for q in current]
 
     # responses: the export's responses, if any (the importer reads the project's database)

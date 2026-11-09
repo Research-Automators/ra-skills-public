@@ -29,6 +29,17 @@ Each answer gets a rule in `calculation`. The short form is a string — the mai
   ] }
 ```
 
+**Age groups from a year of birth.** Compare the year with the current year minus the age, and say which year you counted from (e.g. in the update's `note`). `> 0` keeps respondents without an answer out of the last group.
+
+```json
+{ "id": "AgeGroup", "type": "single", "text": "Age group", "excluded": true,
+  "answers": [
+    { "id": "1", "text": "Under 35", "calculation": "{YOB}:VALUEN > 2026 - 35" },
+    { "id": "2", "text": "35-54",    "calculation": "{YOB}:VALUEN <= 2026 - 35 AND {YOB}:VALUEN > 2026 - 55" },
+    { "id": "3", "text": "55+",      "calculation": "{YOB}:VALUEN > 0 AND {YOB}:VALUEN <= 2026 - 55" }
+  ] }
+```
+
 The long form is an object, used only when the short form can't express the rule:
 
 | Key | Meaning |

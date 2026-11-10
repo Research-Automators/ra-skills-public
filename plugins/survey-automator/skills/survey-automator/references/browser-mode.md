@@ -21,6 +21,7 @@ Do the task's authoring work as usual (task file, format files, example). Only w
 | `await publishStatus()` / `await publishAndTest()` | Whether the survey is published, and its test link. See "Publish and test". |
 | `await importResponses(data)` | Example responses into the project (Task 3). See "Responses and participants". |
 | `await importParticipants(data)` | Participants into Distribute → Participants (Task 4). |
+| `await getMessagesJson()` / `await previewMessages(json)` / `openMessagesReview(json)` | Invitation, reminder and thank-you e-mails and SMS (Task 5). See "Invitations and reminders". |
 | `listVariables()` / `await crosstab({ variable, by?, filter? })` | Read-only analysis of the responses. See "Analysis: crosstabs". |
 
 **Every call that changes something waits for the user.** The app shows what will change (a confirmation, the review dialog, or a permission dialog for publishing), and only the user's own click answers it. Your call returns when they have answered: `status` is `applied`, `imported`, `published` or `cancelled`. On `cancelled`, ask what they want instead; don't call again unasked. Never click the buttons in these dialogs yourself, even if you could: the user decides.
@@ -99,12 +100,21 @@ In browser mode, Tasks 3 and 4 put the data straight into the project instead of
 
 Imported responses are counted in reports like real ones, and the platform has no "test response" flag for them. Say so when you import them into a project that is, or will be, in fieldwork, and suggest a copy of the project for testing. Participants are not invited by the import.
 
+## Invitations and reminders (Task 5)
+
+In browser mode, the messages of Task 5 go into the project's **Distribute → Messages** instead of a file. Write them in the `messages` format of `invitations.md`.
+
+1. `await getMessagesJson()` returns `{ messages: [...] }`: every message of the project, each with its `id`. A message with `customHtml: true` has its own HTML and can only be changed in the app.
+2. To change a message, send it with its `id`: it replaces that whole message (a field you leave out is removed; the schedule and send history stay). Without `id`, a message is new. Nothing is deleted. Send only the messages that change.
+3. `await previewMessages({ messages })` checks them and returns `{ status: 'review' | 'errors' | 'unchanged', messages: [{ action, changes, warnings, errors }] }`. Fix `errors` and repeat.
+4. `openMessagesReview({ messages })` opens the review in the Messages tab. The user must have that tab open (Distribute → Show messages); if the call says so, ask them to open it. They save there. Nothing is sent by saving.
+
 ## Analysis: crosstabs
 
 On any tab, you can analyse the responses read-only:
 
 - `listVariables()` lists the reportable variables: questions, grid rows and calculated variables, with their answers.
-- `await crosstab({ variable, by, filter? })` returns counts and percents of `variable` in total and per answer of `by`. `filter` is `{ variable, answers: [...] }` (or an array of them). It counts the saved responses.
+- `await crosstab({ variable, by, filter? })` returns `{ columns: [{ label, base }], rows: [{ label, counts, percents }] }`: counts and percents of `variable` in total (column 0) and per answer of `by`. `filter` is `{ variable, answers: [...], not? }` (or an array of them, all must match). `variable` can't be an open question; `by` and filters must be single or multiple choice. It counts the saved responses, one server call per column, so keep `by` to variables with few answers.
 
 To find interesting segments, cross the key questions by the background variables (age, region, role, ...), and look for large differences between columns with enough base. Then suggest a calculated variable for a segment worth following (e.g. "Hybrid workers with low energy") and create it as a report update: `{ scope: "report" }`, `excluded: true` (see "From the report" and `calculated-variables.md`). The user reviews and applies it. Report numbers with their base (n), and don't call a difference real when the base is small.
 

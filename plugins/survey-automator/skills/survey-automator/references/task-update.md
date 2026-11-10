@@ -4,9 +4,21 @@ The user has a survey that already exists in Survey Automator, often with respon
 
 Use Task 1 or 2 instead when the user wants a new survey, or a new copy of a survey ("make a v2 as a new project").
 
-## Input: the current survey export
+## In the browser
 
-You need the survey's current JSON export. It starts with `"surveyVersion"` (8 hex characters), lists conditions in a top-level `conditions` array that questions point to with `conditionId`, and may have `responses`. If the user has only a description or an old file, ask them to export the survey again. An update made from an outdated export is refused.
+With a Survey Automator project open in the browser tab (SKILL.md, Step 0), follow `browser-mode.md` and `browser-survey.md`: the update below is sent through the platform's API instead of a file, and the user applies it in the review dialog.
+
+## Report-only updates
+
+On the Dashboard and Report tabs, what happens in the report stays in the report. The platform accepts only calculated variables hidden from respondents (`excluded: true`) and report texts (send only `text`; the text respondents see is kept as its `surveyText`). Anything else is refused (`reportScopeSurveyChange`, `reportScopeVisible`). For a file, write `"scope": "report"` at the top level. The user imports it on the Dashboard with **Report settings → Import → JSON updates**; tell them so when the update only adds calculated variables or report texts.
+
+## Changing a survey you made earlier
+
+Without the browser API, write an update file against your latest version of the survey and leave out `baseVersion`, unless you have an export. End with one line: "If the import is refused because the survey has responses, or you've changed it in the editor or unticked changes in the review, export the survey and give me the export." If the user hasn't imported the survey yet, they import the full revised survey instead (Task 1 or 2): give it if they ask.
+
+## Input: the current survey (export)
+
+The survey's JSON export starts with `"surveyVersion"` (8 hex characters), lists conditions in a top-level `conditions` array that questions point to with `conditionId`, and may have `responses`. Use it whenever you have it, and always when the survey has responses: ask the user to export the survey again if they have only a description or an old file. Without an export, your latest version is the base: use its ids exactly.
 
 Read `format-core.md` and `format-questions.md` (and `example.json`) as well: added and replaced questions follow the normal authoring rules. `update-example.json` is a worked update of `example.json`.
 
@@ -23,8 +35,8 @@ Read `format-core.md` and `format-questions.md` (and `example.json`) as well: ad
 }
 ```
 
-- `updateMode: true`, then `baseVersion` = the export's `surveyVersion`, copied exactly. Never invent it.
-- Only `questions`. Any other top-level key (`conditions`, `responses`, `surveyMessages`, `groups`, `messages`) is refused.
+- `updateMode: true`, then `baseVersion` = the export's `surveyVersion`, copied exactly. Never invent it. Leave it out only when you have no export and the survey has no responses: the importer then accepts the file and the review notes that changes made in the editor since may be overwritten. With responses a file without `baseVersion` is refused. A `baseVersion` that doesn't match the survey makes the review warn that the survey has changed, and the user has to confirm.
+- Only `questions` (and `scope`, see "From the report"). Any other top-level key (`conditions`, `responses`, `surveyMessages`, `groups`, `messages`) is refused.
 - Every changed question has an `update` object. Update markup is never allowed in a normal (create) import.
 
 ## The `update` object
@@ -50,9 +62,9 @@ Read `format-core.md` and `format-questions.md` (and `example.json`) as well: ad
 ## Answers and rows in an `edit`
 
 Matched by `id`. An existing id updates only the properties you send, so `{ "id": "2" }` alone changes nothing. A new id adds the item.
-- If the array lists **every** existing id, its order is the new order and new items sit where they appear. If it lists **only some**, new items go **last** and order is ignored.
+- If the array lists **every** existing id, its order is the new order and new items sit where they appear. If it lists **only some**, new items go **last**, and the listed ones must stay in their current order: a partial list in a new order is refused (to reorder, list every id).
 - Removing an answer or row needs `replace`.
-- A grid's rows keep the `<QuestionId>.<N>` pattern. Number new rows after the highest existing one.
+- A grid's rows keep the `<QuestionId>.<N>` pattern. Number new rows after the highest existing one, even when you list a new row earlier (e.g. as the second row): existing rows keep their ids, so ids need not match positions in an update. With responses, new rows must go last (see "Data safety").
 
 ## Renames
 
@@ -67,9 +79,18 @@ Renames are applied all at once, so swaps work. The importer rewrites references
 
 Responses are stored by answer and row **position**. On a question with responses the importer refuses anything that moves an existing answer or row: reordering, inserting in the middle, or removing one that is not last. So with data:
 - add new answers and rows **last**, and send only the new items in an `edit`;
-- never repurpose an answer id with a new meaning (e.g. "Weekly" → "Monthly"). Add a new answer instead;
+- never repurpose an answer id with a new meaning (e.g. "Weekly" → "Monthly"). Add a new answer instead. Moving labels between existing answers (a swap, or shifting bands one step) is refused;
+- never change a question between `open` and answer options (`single`/`multiple`): the stored values can't be read as answer codes, so it is refused. Add a new question with a new id and `remove` the old one;
 - prefer `remove` (soft delete) over reusing a question;
 - a reworded closed question or answer label is allowed, but tell the user it may break comparability with earlier answers.
+
+## Calculated variables
+
+An update file can add calculated variables (calculated, coded, period, category variable) with `add`, and change them with `edit` or `replace`. Write them as `calculated-variables.md` describes. In an `edit`, send the changed rule (`calculation`, `codes`, `period`, `category`) on the answer or question it belongs to.
+- The platform computes their values for all existing responses after the update, so the data-safety rules above don't apply to them: their answers may be reordered, relabelled or removed even with responses. A question that stops being calculated keeps its values as data, and then the rules apply.
+- An `edit` that changes their answers or rows rebuilds the question, so its translations are reset.
+- A coded source has no braces: `"coded": "Comments"`, or `"Comments:3"` for one open answer. The importer refuses `{Comments}` in an update.
+- A `multiple` question whose only answer is a calculated `Open` value stays `multiple` in the export. Keep it `multiple`.
 
 ## Rules
 
@@ -87,6 +108,6 @@ Responses are stored by answer and row **position**. On a question with response
 
 ## Validate and deliver
 
-Run `python <skill-root>/scripts/validate.py <update.json> --base <export.json>`. With `--base` it runs the importer's checks: ids, merge, declared `change`, positions, references and data safety (using the export's `responses`, if any). It also prints the review dialog the user will see. Fix every error and re-run until clean. Without the export, run it without `--base` and say that only the file's own rules were checked.
+Run `python <skill-root>/scripts/validate.py <update.json> --base <export.json>`. With `--base` it runs the importer's checks: ids, merge, declared `change`, positions, references and data safety (using the export's `responses`, if any). It also prints the review dialog the user will see. It reports every problem in one run, as the importer does. Fix them all and re-run until clean. Without the export, run it without `--base` and say that only the file's own rules were checked.
 
 Name the file `<survey>-update.json` (full form: `<survey>-update-full.json`). In the summary, list what each group of the review dialog will show, and point out anything under **Needs attention** and any removed question with data. Then: "To import: open the existing project in [Survey Automator](https://app.researchautomators.com/) → **Import survey** → **From JSON**, then review and apply the changes."

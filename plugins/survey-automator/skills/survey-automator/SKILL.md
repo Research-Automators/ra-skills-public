@@ -1,38 +1,44 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Skill version: 2026-11-09-2"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Also use it for short requests made while a Survey Automator project is open in the browser tab, such as 'create age groups from YOB', 'publish and test it' or 'which groups differ most?', even when they don't mention a survey. Skill version: 2026-11-10-9"
 ---
 
-Version: 2026-11-09-2
+Version: 2026-11-10-9
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-09-2)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-10-9)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 
 **When authoring questions, rely heavily on `references/example.json`.** It is the single most reliable teacher of correct idiom — when prose rules and the example seem to disagree, follow the example.
 
+## Step 0: Survey Automator open in the browser?
+
+Before anything else, for every task: if you can run JavaScript in the user's browser tab (Claude in Chrome or a similar browser assistant), check `typeof window.surveyAutomator`. If it is there, Survey Automator is open (a project, or the project list) and the result goes straight into the user's project, not into a file: read `references/browser-mode.md` and follow it together with the task below. If it isn't there, or you can't run JavaScript in the tab, skip this step.
+
 ## Identify the task
 
-Six tasks. Pick one before doing anything else:
+Six tasks. After Step 0, pick one:
 
-1. **Prompt to survey** — user describes a survey in free-form natural language. Read `references/task-prompt.md`.
-2. **Brief to survey** — user provides or attaches a structured survey brief (typically Word/PDF) with research objectives and a list of questions. Read `references/task-brief.md`.
-3. **Populate responses** — user provides existing Survey Automator JSON and asks for synthetic / mock / example / test responses or respondents. Read `references/task-responses.md`.
-4. **Generate participants** — user explicitly says "participants" (invite list, no survey answers). Read `references/task-participants.md`.
-5. **Generate invitation messages** — user explicitly asks for invitation emails, reminder emails or SMS, thank-you messages, or notifications to be sent to participants. Read `references/task-invitations.md`. Trigger words: "invitation email", "send-out", "SMS reminder", "thank-you email", "notification", "invitation copy". Do **not** trigger this task for end-of-flow screens shown to respondents inside the survey — those are handled by `surveyMessages` and covered in `references/messages.md`. If the user just says "messages" with no context, ask which of these two they mean.
-6. **Update existing survey** — user wants to change a survey that already exists in Survey Automator (reword, add, remove, move or rename questions or answers) and keep its data. Read `references/task-update.md`.
+1. **Prompt to survey** — user describes a survey in free-form natural language. Read `references/task-prompt.md`. In browser mode, create it in the open project (Step 0, `browser-survey.md`).
+2. **Brief to survey** — user provides or attaches a structured survey brief (typically Word/PDF) with research objectives and a list of questions. Read `references/task-brief.md`. In browser mode, create it in the open project (Step 0, `browser-survey.md`).
+3. **Populate responses** — user provides existing Survey Automator JSON and asks for synthetic / mock / example / test responses or respondents. Read `references/task-responses.md`. In browser mode, import them into the open project (Step 0, `browser-data.md`).
+4. **Generate participants** — user explicitly says "participants" (invite list, no survey answers). Read `references/task-participants.md`. In browser mode, import them into the open project (Step 0, `browser-data.md`).
+5. **Generate invitation messages** — user explicitly asks for invitation emails, reminder emails or SMS, thank-you messages, or notifications to be sent to participants. Read `references/task-invitations.md`. Trigger words: "invitation email", "send-out", "SMS reminder", "thank-you email", "notification", "invitation copy". Do **not** trigger this task for end-of-flow screens shown to respondents inside the survey — those are handled by `surveyMessages` and covered in `references/messages.md`. If the user just says "messages" with no context, ask which of these two they mean. In browser mode, put them in the open project's Messages (Step 0, `browser-messages.md`).
+6. **Update existing survey** — user wants to change a survey that already exists in Survey Automator (reword, add, remove, move or rename questions or answers) and keep its data, including asking for changes to a survey you made earlier once it has been imported. Read `references/task-update.md`. In browser mode, make the update in the open project (Step 0, `browser-survey.md`).
 
 Match the user's word, not the data shape. "Responses"/"respondents" → Task 3. "Participants" → Task 4. "Invitation"/"reminder"/"send-out" → Task 5.
 
-Adding calculated variables (grouped, recoded or coded variables, period or category variables) to a new or existing survey is Task 1 — read `references/calculated-variables.md` as well.
+Calculated variables (grouped, recoded or coded variables, period or category variables) — read `references/calculated-variables.md` as well:
+- in a survey you are writing now: Task 1;
+- in a survey that already exists in Survey Automator (the project open in the browser, or an export): Task 6, as an update that adds them. "Create age groups from YOB" with a project open is this case.
 
 If the user combines tasks (e.g. pastes JSON and asks to add new questions, then fill responses), do them in order: task 1's authoring step, then task 3's response generation. A survey + invitation messages combination is Task 1 or 2 first, then Task 5. If unsure which task applies, ask.
 
 ## Workflow
 
-1. Identify the task above.
+1. Do Step 0, then identify the task above.
 2. **Read the files for the task**, and only those (other references are pulled in by the triggers in the task file):
 
    | Task | Read |
@@ -46,11 +52,11 @@ If the user combines tasks (e.g. pastes JSON and asks to add new questions, then
 
    All are in `references/`. When in doubt about idiom, **mimic the example rather than reasoning from prose rules**.
 3. Do the task-specific work per its reference file.
-4. Write, validate and deliver the output as described in "Output, validation and delivery" below. Give a brief chat summary (counts and structure, not a JSON dump). On the first survey delivered in a conversation, end the summary with: "To import: go to [Survey Automator](https://app.researchautomators.com/) → **New (empty) project** → **Import survey** → **From JSON**."
+4. In browser mode, deliver as `browser-mode.md` says. Otherwise, write, validate and deliver the output as described in "Output, validation and delivery" below. Give a brief chat summary (counts and structure, not a JSON dump). On the first survey delivered in a conversation, end the summary with: "To import: go to [Survey Automator](https://app.researchautomators.com/) → **New (empty) project** → **Import survey** → **From JSON**."
 
 ## Output, validation and delivery
 
-This skill runs on several AI platforms, so check what the current environment can do instead of assuming.
+This skill runs on several AI platforms, so check what the current environment can do instead of assuming. In browser mode (Step 0) the open project is the delivery: validate as below, but don't write or share a file unless the user asks (see `browser-mode.md`).
 
 - **Paths.** All paths in this skill (`references/…`, `scripts/…`) are relative to the skill root, the folder containing this SKILL.md. Use the full path when the working directory is somewhere else.
 - **Write** the file as `<descriptive-name>.json` in the platform's output folder for user files (e.g. `/mnt/user-data/outputs/` in Claude, `/mnt/data/` in ChatGPT). If there is none, use any writable folder.
@@ -62,6 +68,12 @@ This skill runs on several AI platforms, so check what the current environment c
 
 All under `references/` unless noted. The table under "Workflow" says what each task reads; the files below marked "on trigger" are read only when their trigger applies.
 
+- `browser-mode.md` — on trigger: Step 0 found `window.surveyAutomator` (Survey Automator open in the browser). The rules for every request, what to offer on each tab, and which of the files below to read:
+  - `browser-survey.md` — create or update the survey in the project, report variables, design, survey messages, publish and test.
+  - `browser-data.md` — import responses and participants, sync responses.
+  - `browser-messages.md` — invitations and reminders in the project.
+  - `browser-analysis.md` — crosstabs, segments, the Dashboard.
+  - `browser-home.md` — the user's projects and folders, new projects.
 - `task-prompt.md`, `task-brief.md`, `task-responses.md`, `task-participants.md`, `task-invitations.md`, `task-update.md` — one per task. Read only the active task's file.
 - `format-core.md` — principles, top-level structure, key order, category questions, how to treat calculated variables. Every task.
 - `format-questions.md` — questions, answers, interfaces, groups, points, matrices and grids, conditions (incl. background data and what is not usable in them), texts and bookmarks. Authoring.

@@ -46,6 +46,8 @@ Each message is an object with three optional text fields:
 |---|---|---|
 | `redirectURL` | string | Full URL the respondent is redirected to a few seconds after the thank-you screen renders. Omit unless the user explicitly requests a redirect. |
 
+With a Survey Automator project open in the browser, messages and redirects can also be changed in the project itself, including redirects for screen-outs and quota full (see "Survey messages and redirects" in `browser-survey.md`).
+
 No other fields are allowed; the validator rejects typos and unknown keys.
 
 ## Writing the copy

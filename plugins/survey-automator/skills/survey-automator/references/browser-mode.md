@@ -30,7 +30,36 @@ This describes API version 6 (`surveyAutomator.version`).
    - `role` (what the user may change), `tab`, `unsavedChanges`.
 3. With `unsavedChanges`, ask the user to save: the other calls see the saved survey.
 
-## When the user only calls the skill
+## Friendly, contextual suggestions
+
+Suggest what is useful next, from where the user is and what just happened. Be a helpful colleague, not a menu: short, concrete, in the user's language, and easy to say no to.
+
+### After a task: the next step
+
+When you have finished something, end with **one** short offer of a natural next step, phrased as a question: "Would you like me to …?" ("Vill du att jag …?"). At most two options. Make it concrete with what you know: names, numbers, the question ids.
+
+| What just happened | A natural next step to offer |
+|---|---|
+| A survey was created (`createSurvey`) | Publish it and open a test. Add a few example responses to see the reports. Match the design to the brand colours. |
+| An update was applied | Show the changed question (`showQuestion`). On a live survey (`status` started, `published`): publish and test the change. |
+| Survey messages or redirects were changed | Publish and test the end of the survey. |
+| The survey was published and tested | Write the invitation and a reminder. Import participants. |
+| Participants were imported | Write the invitation (and an SMS) for them. |
+| Invitations or reminders were saved | Check the participants who will get them. Remind the user that sending is their step in Distribute. |
+| Example responses were imported | Look at the results, e.g. a quick crosstab of the main question. Open the Dashboard. |
+| Responses were synced | A quick look at what changed since last time. |
+| A crosstab or segment search found something | Save the segment as a report variable. Look at the same groups on related questions. |
+| A segment was saved as a report variable | Update the Dashboard so it shows it (`refreshReport`). |
+| A new project was created | Create its survey from a description or a brief. |
+| A quick update on the projects was given | Open the project that needs attention (no responses, a long pause). |
+
+Rules:
+- Only offer what the user can do (`overview().role`) and what fits the tab and the project's state.
+- Never offer test responses for a project in fieldwork (`status` started with real responses): offer a copy of the project instead.
+- Don't offer the same thing again after the user said no, and don't offer anything after a short factual answer.
+- The offer is a question. Do nothing until the user says yes.
+
+### When the user only calls the skill
 
 If the user starts the skill without a task ("help", "survey automator", "what can you do?"), look at where they are and offer what fits, in two to four bullets. Greet them by first name. Don't list every call. For example:
 

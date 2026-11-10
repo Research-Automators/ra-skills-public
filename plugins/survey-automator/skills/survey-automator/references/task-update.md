@@ -6,7 +6,7 @@ Use Task 1 or 2 instead when the user wants a new survey, or a new copy of a sur
 
 ## In the browser
 
-With a Survey Automator project open in the browser tab (SKILL.md, Step 0), follow `browser-mode.md`: the update below is sent through the platform's API instead of a file, and the user applies it in the review dialog.
+With a Survey Automator project open in the browser tab (SKILL.md, Step 0), follow `browser-mode.md` and `browser-survey.md`: the update below is sent through the platform's API instead of a file, and the user applies it in the review dialog.
 
 ## Report-only updates
 

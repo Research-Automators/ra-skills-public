@@ -4,7 +4,7 @@ Read this together with `browser-mode.md` when the request creates or changes a 
 
 ## Empty project: create the survey (Tasks 1 and 2)
 
-1. Write the survey JSON as usual. Validate it if you can run the validator (SKILL.md, "Output, validation and delivery").
+1. Write the survey JSON as usual, from a description (`task-prompt.md`) or a brief (`task-brief.md`). Validate it if you can run the validator (SKILL.md, "Output, validation and delivery").
 2. Call `await surveyAutomator.createSurvey(survey)`. Never use an update file (`updateMode`) for an empty project. If `status` is `errors`, fix them and call it again. The server checks that the project is empty; if someone else is editing it, the call fails and you tell the user.
 3. `questions`, `conditions` and `surveyMessages` are imported. Anything else, such as `responses`, is listed in `notImported`. So don't put example responses in the survey JSON (this overrides the default in `task-prompt.md`); if the user wants them, import them afterwards with `importResponses` (`browser-data.md`).
 4. Tell the user in a few lines what you made, and what `notImported` lists. The app shows **Undo** for 15 seconds.
@@ -24,7 +24,7 @@ If the user asked for a **new** survey and the project already has questions, do
 ## From the report
 
 On the Dashboard and Report tabs (`reportScope()` is `true`), what happens in the report stays in the report. Pass `{ scope: "report" }` as the second argument to `previewUpdate` and `openUpdateReview`. The platform accepts only two kinds of change:
-- calculated variables hidden from respondents (`excluded: true`): add, edit, replace, move or remove them;
+- calculated variables hidden from respondents (`excluded: true`): add, edit, replace, move or remove them (how to write them: `calculated-variables.md`);
 - the report text of a question: send only `text`. The text respondents see is kept as its `surveyText`.
 
 Anything else is refused (`reportScopeSurveyChange`, `reportScopeVisible`). The review dialog says "Report changes only". For another change, say it is made on the Survey tab, and offer `openTab("Survey")`.

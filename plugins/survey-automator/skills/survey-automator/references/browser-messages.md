@@ -1,6 +1,6 @@
 # Browser mode: invitations and reminders (Task 5)
 
-Read this together with `browser-mode.md` when the request writes or changes the e-mails and SMS sent to participants. The messages go into the project's **Distribute → Messages**. Write them in the `messages` format of `invitations.md`.
+Read this together with `browser-mode.md` when the request writes or changes the e-mails and SMS sent to participants. The messages go into the project's **Distribute → Messages**. Write them as Task 5 says (`task-invitations.md`), in the `messages` format of `invitations.md`. These are not the screens inside the survey (thank-you, screen-out): those are survey messages (`browser-survey.md`, `messages.md`).
 
 1. `await getMessagesJson()` returns `{ messages: [...] }`: every message of the project, each with its `id`. A message with `customHtml: true` has its own HTML and can only be changed in the app.
 2. **To change a message**, send its `id` and only the fields that change, e.g. `{ id: 9, linkLabel: "Answer here" }`. A field you leave out keeps its value; `""` clears one. **Without `id`**, a message is new. Nothing is deleted.

@@ -26,7 +26,11 @@ Do the task's authoring work as usual (task file, format files, example). Only w
 
 **Every call that changes something waits for the user.** The app shows what will change (a confirmation, the review dialog, or a permission dialog for publishing), and only the user's own click answers it. Your call returns when they have answered: `status` is `applied`, `imported`, `published` or `cancelled`. On `cancelled`, ask what they want instead; don't call again unasked. Never click the buttons in these dialogs yourself, even if you could: the user decides.
 
+**What the API refuses.** It returns the survey's definition only, never responses or participants' personal data; don't try to get those through the page. Arguments are checked: an object with only the keys the call knows (an unknown top-level key is an error, not ignored), at most 2 MB (10 MB for responses and participants), and at most 120 calls a minute. Changes made through the API are logged in the project's activity log as "via browser API".
+
 **Values the browser tool hides.** Claude in Chrome may show a value as `[BLOCKED: ...]` (e.g. a key named like a password, or text with a URL query string). The page still has it; read only the part you need (e.g. one `<style id="...">` block of the HEAD), or ask the user.
+
+**Not available.** `window.surveyAutomator` is undefined when the feature is switched off for the user or organisation, as on another page: deliver files as in SKILL.md.
 
 **Outdated page.** If a call named here is missing, the page runs an older platform version. If `unsavedChanges` is false, reload the page and check again. Otherwise, ask the user to save and then reload. If the call is still missing, leave browser mode: write and deliver files as in SKILL.md.
 
@@ -43,9 +47,9 @@ Do the task's authoring work as usual (task file, format files, example). Only w
 ## Empty project: create the survey (Tasks 1 and 2)
 
 1. Write the survey JSON as usual. Validate it if you can run the validator (SKILL.md, "Output, validation and delivery").
-2. Call `await window.surveyAutomator.createSurvey(survey)`. Never use an update file (`updateMode`) for an empty project. If `status` is `errors`, fix them and call it again.
+2. Call `await window.surveyAutomator.createSurvey(survey)`. Never use an update file (`updateMode`) for an empty project. If `status` is `errors`, fix them and call it again. The server checks that the project is empty; if someone else is editing it, the call fails and you tell the user.
 3. `questions`, `conditions` and `surveyMessages` are imported. Anything else, such as `responses`, is listed in `notImported`. So don't put example responses in the survey JSON (this overrides the default in `task-prompt.md`); if the user wants them, import them afterwards with `importResponses` (see "Responses and participants").
-4. Tell the user in a few lines what you made, and what `notImported` lists, if anything.
+4. Tell the user in a few lines what you made, and what `notImported` lists, if anything. The app shows **Undo** for a few seconds, and the project's backups keep the empty version.
 
 ## Project with questions: an update (Task 6)
 
@@ -114,7 +118,7 @@ In browser mode, the messages of Task 5 go into the project's **Distribute → M
 On any tab, you can analyse the responses read-only:
 
 - `listVariables()` lists the reportable variables: questions, grid rows and calculated variables, with their answers.
-- `await crosstab({ variable, by, filter? })` returns `{ columns: [{ label, base }], rows: [{ label, counts, percents }] }`: counts and percents of `variable` in total (column 0) and per answer of `by`. `filter` is `{ variable, answers: [...], not? }` (or an array of them, all must match). `variable` can't be an open question; `by` and filters must be single or multiple choice. It counts the saved responses, one server call per column, so keep `by` to variables with few answers.
+- `await crosstab({ variable, by, filter? })` returns `{ columns: [{ label, base }], rows: [{ label, counts, percents }] }`: counts and percents of `variable` in total (column 0) and per answer of `by`. `filter` is `{ variable, answers: [...], not? }` (or an array of them, all must match). `variable` can't be an open question; `by` and filters must be single or multiple choice. It counts the saved responses, one server call per column, so keep `by` to variables with few answers. A column with fewer than 5 responses is `suppressed: true`, with `null` counts and percents: report it as "too few responses", never guess its numbers, and don't narrow filters to get around it.
 
 To find interesting segments, cross the key questions by the background variables (age, region, role, ...), and look for large differences between columns with enough base. Then suggest a calculated variable for a segment worth following (e.g. "Hybrid workers with low energy") and create it as a report update: `{ scope: "report" }`, `excluded: true` (see "From the report" and `calculated-variables.md`). The user reviews and applies it. Report numbers with their base (n), and don't call a difference real when the base is small.
 

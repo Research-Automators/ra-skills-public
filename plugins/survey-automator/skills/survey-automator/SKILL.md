@@ -1,13 +1,13 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Also use it for short requests made while a Survey Automator project is open in the browser tab, such as 'create age groups from YOB', 'publish and test it' or 'which groups differ most?', even when they don't mention a survey. Skill version: 2026-11-10-3"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Also use it for short requests made while a Survey Automator project is open in the browser tab, such as 'create age groups from YOB', 'publish and test it' or 'which groups differ most?', even when they don't mention a survey. Skill version: 2026-11-10-4"
 ---
 
-Version: 2026-11-10-3
+Version: 2026-11-10-4
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-10-3)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-10-4)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 

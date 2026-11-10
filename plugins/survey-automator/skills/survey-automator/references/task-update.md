@@ -4,21 +4,13 @@ The user has a survey that already exists in Survey Automator, often with respon
 
 Use Task 1 or 2 instead when the user wants a new survey, or a new copy of a survey ("make a v2 as a new project").
 
-## In the browser: window.surveyAutomator
+## In the browser
 
-If you can run JavaScript in the user's browser tab (e.g. Claude in Chrome) and the tab shows a Survey Automator project, check `typeof window.surveyAutomator`. If it is there, use it instead of asking for files. It runs in the user's own session:
-- `surveyAutomator.project()`: `{ id, name, unsavedChanges, questionCount, tab, reportScope }`. `tab` is the open tab; with `reportScope` see "From the report" below. With `unsavedChanges`, ask the user to save first: the other calls see the saved survey. With `questionCount` 0 the project is empty: create the survey with `createSurvey` (see SKILL.md, "In the browser"), not with an update.
-- `await surveyAutomator.getSurveyJson()`: the current export, with `surveyVersion`. Use it as the base and copy `surveyVersion` into `baseVersion`. Read it again before every new round of changes: the user may have unticked something in the last review, or changed the survey in the editor.
-- `await surveyAutomator.previewUpdate(update)`: the server's checks. It returns `{ status: "review" | "errors", errors, review }` with every problem at once. Fix and repeat until the status is `review`. It does not change the survey.
-- `surveyAutomator.openUpdateReview(update)`: opens the review dialog. Tell the user in one line what the update does, and that they review and apply it there. You can't apply it yourself, and you shouldn't click Apply for the user. If the app asks about the project's edit lock, the user decides.
+With a Survey Automator project open in the browser tab (SKILL.md, Step 0), follow `browser-mode.md`: the update below is sent through the platform's API instead of a file, and the user applies it in the review dialog.
 
-`surveyAutomator.help` lists the calls. If it isn't there (another page, or an older version of the platform), use the files as below.
+## Report-only updates
 
-**From the report.** On the Dashboard and Report tabs (`surveyAutomator.reportScope()` is `true`), what happens in the report stays in the report. The update gets `"scope": "report"`, and the platform accepts only two kinds of change:
-- calculated variables hidden from respondents (`excluded: true`): add, edit, replace, move or remove them;
-- the report text of a question: send only `text`. The text respondents see is kept as its `surveyText`.
-
-Anything else is refused (`reportScopeSurveyChange`, `reportScopeVisible`). The review dialog says "Report changes only". For other changes, ask the user to open the Survey tab. Without the browser API, the user imports such a file on the Dashboard with **Report settings → Import → JSON updates**, which applies the same rules. You can also set the scope yourself: pass `{ scope: "report" }` as the second argument to `previewUpdate` and `openUpdateReview`, or write `"scope": "report"` in a file.
+On the Dashboard and Report tabs, what happens in the report stays in the report. The platform accepts only calculated variables hidden from respondents (`excluded: true`) and report texts (send only `text`; the text respondents see is kept as its `surveyText`). Anything else is refused (`reportScopeSurveyChange`, `reportScopeVisible`). For a file, write `"scope": "report"` at the top level. The user imports it on the Dashboard with **Report settings → Import → JSON updates**; tell them so when the update only adds calculated variables or report texts.
 
 ## Changing a survey you made earlier
 

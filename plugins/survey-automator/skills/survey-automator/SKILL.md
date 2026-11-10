@@ -1,13 +1,13 @@
 ---
 name: "survey-automator"
-description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Also use it for short requests made while a Survey Automator project is open in the browser tab, such as 'create age groups from YOB', 'publish and test it' or 'which groups differ most?', even when they don't mention a survey. Skill version: 2026-11-10-4"
+description: "Create surveys in the Survey Automator JSON export format from a natural-language prompt or from a structured survey brief (Word, PDF, or text), and generate realistic example respondent data for new or existing surveys. Use this skill whenever the user wants to build, design, or convert a survey, questionnaire, poll, or form — even if they don't name the Survey Automator platform explicitly. Also use when the user provides existing Survey Automator JSON and wants synthetic/mock responses generated for it, or wants calculated variables (grouped variables, coded open ends, period or category variables) added to a survey, or wants to change a survey that already exists in Survey Automator (Survey Update Mode). Also use it for short requests made while a Survey Automator project is open in the browser tab, such as 'create age groups from YOB', 'publish and test it' or 'which groups differ most?', even when they don't mention a survey. Skill version: 2026-11-10-5"
 ---
 
-Version: 2026-11-10-4
+Version: 2026-11-10-5
 
 # Survey Automator
 ## Version
-This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-10-4)". Always answer directly if the user asks which version is loaded.
+This skill's version is in its description (`Skill version: …`). The first time you use this skill in a conversation, mention the skill name and version in one short line, e.g. "(survey-automator, version 2026-11-10-5)". Always answer directly if the user asks which version is loaded.
 
 Produce valid Survey Automator export JSON: survey definitions (`questions`) and/or synthetic respondent data (`responses`).
 
@@ -15,7 +15,7 @@ Produce valid Survey Automator export JSON: survey definitions (`questions`) and
 
 ## Step 0: Survey Automator open in the browser?
 
-Before anything else, for every task: if you can run JavaScript in the user's browser tab (Claude in Chrome or a similar browser assistant), check `typeof window.surveyAutomator`. If it is there, a Survey Automator project is open and the result goes straight into it, not into a file: read `references/browser-mode.md` and follow it together with the task below. If it isn't there, or you can't run JavaScript in the tab, skip this step.
+Before anything else, for every task: if you can run JavaScript in the user's browser tab (Claude in Chrome or a similar browser assistant), check `typeof window.surveyAutomator`. If it is there, Survey Automator is open (a project, or the project list) and the result goes straight into the user's project, not into a file: read `references/browser-mode.md` and follow it together with the task below. If it isn't there, or you can't run JavaScript in the tab, skip this step.
 
 ## Identify the task
 
@@ -68,7 +68,7 @@ This skill runs on several AI platforms, so check what the current environment c
 
 All under `references/` unless noted. The table under "Workflow" says what each task reads; the files below marked "on trigger" are read only when their trigger applies.
 
-- `browser-mode.md` — on trigger: Step 0 found `window.surveyAutomator` (a project open in the browser). How to create or update the survey directly in the project.
+- `browser-mode.md` — on trigger: Step 0 found `window.surveyAutomator` (Survey Automator open in the browser). How to create or update the survey directly in the project, and work with the user's projects.
 - `task-prompt.md`, `task-brief.md`, `task-responses.md`, `task-participants.md`, `task-invitations.md`, `task-update.md` — one per task. Read only the active task's file.
 - `format-core.md` — principles, top-level structure, key order, category questions, how to treat calculated variables. Every task.
 - `format-questions.md` — questions, answers, interfaces, groups, points, matrices and grids, conditions (incl. background data and what is not usable in them), texts and bookmarks. Authoring.

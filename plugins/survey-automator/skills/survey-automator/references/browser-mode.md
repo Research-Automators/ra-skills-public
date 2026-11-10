@@ -32,48 +32,15 @@ This describes API version 6 (`surveyAutomator.version`).
 
 ## Friendly, contextual suggestions
 
-Suggest what is useful next, from where the user is and what just happened. Be a helpful colleague, not a menu: short, concrete, in the user's language, and easy to say no to.
+Suggest what is useful next, from where the user is and what just happened. Be a helpful colleague, not a menu: short, concrete, in the user's language, and easy to say no to. Each area file has a "Suggestions" section with what fits there.
 
-### After a task: the next step
-
-When you have finished something, end with **one** short offer of a natural next step, phrased as a question: "Would you like me to …?" ("Vill du att jag …?"). At most two options. Make it concrete with what you know: names, numbers, the question ids.
-
-| What just happened | A natural next step to offer |
-|---|---|
-| A survey was created (`createSurvey`) | Publish it and open a test. Add a few example responses to see the reports. Match the design to the brand colours. |
-| An update was applied | Show the changed question (`showQuestion`). On a live survey (`status` started, `published`): publish and test the change. |
-| Survey messages or redirects were changed | Publish and test the end of the survey. |
-| The survey was published and tested | Write the invitation and a reminder. Import participants. |
-| Participants were imported | Write the invitation (and an SMS) for them. |
-| Invitations or reminders were saved | Check the participants who will get them. Remind the user that sending is their step in Distribute. |
-| Example responses were imported | Look at the results, e.g. a quick crosstab of the main question. Open the Dashboard. |
-| Responses were synced | A quick look at what changed since last time. |
-| A crosstab or segment search found something | Save the segment as a report variable. Look at the same groups on related questions. |
-| A segment was saved as a report variable | Update the Dashboard so it shows it (`refreshReport`). |
-| A new project was created | Create its survey from a description or a brief. |
-| A quick update on the projects was given | Open the project that needs attention (no responses, a long pause). |
-
-Rules:
+- **When the user only calls the skill** ("help", "survey automator", "what can you do?"): greet them by first name and offer two to four things that fit the tab, from that area's file (`Home`: `browser-home.md`; `Survey`: `browser-survey.md`; `Messages`, `Participants`: `browser-messages.md` and `browser-data.md`; `Responses`: `browser-data.md`; `Dashboard`, `Report`: `browser-analysis.md`). Don't list every call.
+- **After a task**: end with **one** short offer of a natural next step, as a question: "Would you like me to …?" ("Vill du att jag …?"). At most two options.
+- Make it concrete with what `overview()` says: "15 responses so far; want me to look for differences between work modes?", "7 responses are waiting to be synced".
 - Only offer what the user can do (`overview().role`) and what fits the tab and the project's state.
 - Never offer test responses for a project in fieldwork (`status` started with real responses): offer a copy of the project instead.
 - Don't offer the same thing again after the user said no, and don't offer anything after a short factual answer.
 - The offer is a question. Do nothing until the user says yes.
-
-### When the user only calls the skill
-
-If the user starts the skill without a task ("help", "survey automator", "what can you do?"), look at where they are and offer what fits, in two to four bullets. Greet them by first name. Don't list every call. For example:
-
-| Where | Offer |
-|---|---|
-| `Home`, or no project open | Setting up a new project. A quick update on your active projects. Finding a project. |
-| `Survey`, empty project (`questionCount` 0) | Creating the survey from a description or a brief. Importing a survey you have as a file. |
-| `Survey`, with questions | Changing questions or answers (e.g. "reword Q3", "add an age question"). Adding calculated variables (age groups, coded open ends). Design and colours. Thank-you screen and redirects. Publishing for a test. |
-| `Survey`, live (`status` started, `published`) | As above, and a reminder that changes reach respondents at once; suggest testing after a change. |
-| `Messages`, `Participants` (Distribute) | Writing or changing invitations and reminders. Importing or updating participants. |
-| `Responses` | Example responses for testing (only before fieldwork). Syncing new responses. A quick look at how the responses are going. |
-| `Dashboard`, `Report` | Finding interesting differences between groups. Saving a segment as a report variable. Updating the dashboard with the latest responses. |
-
-Use what `overview()` says to make the offer concrete: "15 responses so far; want me to look for differences between work modes?", "7 responses are waiting to be synced". Then wait for the user's choice.
 
 ## The API
 

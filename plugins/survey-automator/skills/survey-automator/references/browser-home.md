@@ -23,3 +23,15 @@ Read this together with `browser-mode.md` when no project is open (`tab` is `Hom
 - The app opens its New project dialog, filled in. The user creates the project there, and it opens.
 - If the user chose "Allow this session", your next `newProject` calls in that folder create projects directly (5 in all), each with Undo.
 - Then fill the new, empty project with `createSurvey` (`browser-survey.md`).
+
+## Suggestions
+
+**On the Home tab, when the skill is only called:** setting up a new project; a quick update on your active projects; finding a project.
+
+**Next steps:**
+
+| What just happened | Offer |
+|---|---|
+| A new project was created | Create its survey from a description or a brief. |
+| A quick update on the projects was given | Open the project that needs attention (no responses yet, a long pause). |
+| A project was opened | What fits its tab (`browser-mode.md`, "Friendly, contextual suggestions"). |

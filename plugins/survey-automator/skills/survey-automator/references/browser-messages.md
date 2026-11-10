@@ -12,3 +12,14 @@ Read this together with `browser-mode.md` when the request writes or changes the
 5. **SMS sender name**: at most 11 letters and digits (no spaces, hyphens or other characters), or a phone number; carriers may reject anything else. Fix the warning `previewMessages` gives.
 
 Sending is always the user's step in the Distribute tab.
+
+## Suggestions
+
+**On Messages, when the skill is only called:** writing or changing invitations and reminders; an SMS reminder; checking the SMS sender name.
+
+**Next steps:**
+
+| What just happened | Offer |
+|---|---|
+| Invitations or reminders were saved | Check who will get them (the participants). Remind the user that sending is their step in Distribute. |
+| A message was changed that was already sent | Nothing to resend: only later sendouts use it. Say so. |

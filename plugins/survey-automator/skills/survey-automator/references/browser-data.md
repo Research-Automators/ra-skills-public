@@ -32,3 +32,15 @@ Hundreds of rows: build them inside the page in a script, or send them in parts 
 - The user allows it the first time (Cancel / Allow once / Allow this session). At most once a minute.
 - Sync before analysing or reporting when responses are waiting.
 - The result is `{ status: "synced", freshness }`.
+
+## Suggestions
+
+**On the Responses tab, when the skill is only called:** example responses for testing (only before fieldwork); syncing new responses; a quick look at how the responses are going. **On Participants:** importing or updating participants.
+
+**Next steps:**
+
+| What just happened | Offer |
+|---|---|
+| Participants were imported | The invitation (and an SMS) for them (`browser-messages.md`). |
+| Example responses were imported | A quick crosstab of the main question, or the Dashboard (`browser-analysis.md`). |
+| Responses were synced | A quick look at what changed since last time. |

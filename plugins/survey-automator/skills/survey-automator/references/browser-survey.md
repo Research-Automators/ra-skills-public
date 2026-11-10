@@ -53,3 +53,22 @@ The screens respondents see outside the questions (`messages.md`):
 - Publish only when the user asks you to publish or test. A published survey is live: new respondents get the new version at once. Publishing doesn't send invitations.
 - Never read or open `testUrl` yourself.
 - Report what you found in the test; don't test by changing the survey.
+
+## Suggestions
+
+**On the Survey tab, when the skill is only called:**
+
+| The project | Offer |
+|---|---|
+| Empty (`questionCount` 0) | Creating the survey from a description or a brief. Importing a survey you have as a file. |
+| With questions | Changing questions or answers ("reword Q3", "add an age question"). Calculated variables (age groups, coded open ends). Design and colours. Thank-you screen and redirects. Publishing for a test. |
+| Live (`status` started, `published`) | As above, with a reminder that changes reach respondents at once; offer to test after a change. |
+
+**Next steps:**
+
+| What just happened | Offer |
+|---|---|
+| A survey was created | Publish it and open a test. A few example responses to see the reports (`browser-data.md`). The design in the brand colours. |
+| An update was applied | Show the changed question (`showQuestion`). On a live survey: publish and test the change. |
+| Survey messages or redirects were changed | Publish and test the end of the survey. |
+| The survey was published and tested | The invitation and a reminder (`browser-messages.md`). Importing participants (`browser-data.md`). |

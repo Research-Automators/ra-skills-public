@@ -31,3 +31,15 @@ Work like an analyst, with few calls:
 - `dashboard()`: the open report's pages `[{ id, name, type, variables }]`.
 - `await refreshReport()` (Dashboard tab): creates the dashboard, or syncs the responses and updates it. It asks like `syncResponses` and returns a handle; `result(handle, { timeoutMs: 60000 })` says `done` when the report is ready. At most once a minute.
 - `await openDashboardEdit()` opens Edit on the Dashboard for the user.
+
+## Suggestions
+
+**On the Dashboard or Report tab, when the skill is only called:** finding interesting differences between groups; saving a segment as a report variable; updating the dashboard with the latest responses.
+
+**Next steps:**
+
+| What just happened | Offer |
+|---|---|
+| A crosstab or segment search found something | Save the segment as a report variable. The same groups on related questions. |
+| A segment was saved as a report variable | Update the Dashboard so it shows it (`refreshReport`). |
+| The Dashboard was refreshed | The main differences in a few lines. |
